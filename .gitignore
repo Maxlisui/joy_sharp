@@ -1,0 +1,8 @@
+.idea
+.vs
+.vscode
+build
+out
+CMakeSettings.json
+vendor
+*.4coder

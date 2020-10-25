@@ -1,0 +1,1 @@
+If cursor column = 0 and backspace is pressed => Deletes row

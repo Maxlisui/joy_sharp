@@ -1,0 +1,19 @@
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "vendor/dirent"]
+	path = vendor/dirent
+	url = https://github.com/tronkko/dirent.git
+[submodule "vendor/IconFontCppHeaders"]
+	path = vendor/IconFontCppHeaders
+	url = https://github.com/juliettef/IconFontCppHeaders.git
+[submodule "vendor/stb"]
+	path = vendor/stb
+	url = https://github.com/nothings/stb.git
+[submodule "vendor/ImGuiFileDialog"]
+	path = vendor/ImGuiFileDialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git
+[submodule "vendor/tracy"]
+	path = vendor/tracy
+	url = https://github.com/wolfpld/tracy.git
