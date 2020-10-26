@@ -2,6 +2,7 @@
 #include "Tooling.h"
 #include "../vendor/IconFontCppHeaders/IconsFontAwesome5.h"
 #include "../vendor/imgui/imgui.h"
+#include "SearchAndReplaceUI.h"
 #include "EditorUI.h"
 #include "WelcomeUI.h"
 #include <fstream>
@@ -18,8 +19,10 @@ namespace UI {
   static Project::VSSolution *g_sln = nullptr;
   static bool g_renderWelcome = true;
   static bool g_renderSolutionExplorer = true;
+  static bool g_renderSearchAndReplace = false;
   static std::vector<EditorWrapper *> g_editors;
   static std::mutex g_newEditorMutex;
+  static SearchAndReplaceUI *g_searchAndReplace = nullptr;
   
   bool doRenderInSolutionExplorer(const std::string &name) {
     return !(name.ends_with("obj") || name.ends_with("proj") ||
@@ -115,9 +118,32 @@ namespace UI {
     
     ImGui::End();
   }
+
+  void handleKeyboardInput() {
+    ImGuiIO &io = ImGui::GetIO();
+    auto shift = io.KeyShift;
+    auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
+    auto alt = io.ConfigMacOSXBehaviors ? io.KeyCtrl : io.KeyAlt;
+
+    io.WantCaptureKeyboard = true;
+    io.WantTextInput = true;
+    
+    if (ctrl && io.KeysDown[70]) { // ctrl + F Key
+      g_renderSearchAndReplace = true;
+      g_searchAndReplace->show(
+          SearchAndReplaceUI::SearchLocation::CurrentDocument);
+    } else if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape))) {
+      if (g_renderSearchAndReplace) {
+        g_renderSearchAndReplace = false;
+      }
+    }
+  }
   
   void renderMain() {
     PROFILE_START;
+
+    handleKeyboardInput();
+
     ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetWorkPos());
     ImGui::SetNextWindowSize(viewport->GetWorkSize());
@@ -143,6 +169,8 @@ namespace UI {
       }
       if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Solution Explorer", nullptr, &g_renderSolutionExplorer);
+        ImGui::MenuItem("Search and Replace", nullptr,
+                        &g_renderSearchAndReplace);
         ImGui::EndMenu();
       }
       ImGui::EndMenuBar();
@@ -153,11 +181,16 @@ namespace UI {
     if (g_renderSolutionExplorer) {
       renderSlnExplorer();
     }
+
+    if (g_renderSearchAndReplace) {
+      g_searchAndReplace->render();
+    }
     
     if (g_newEditorMutex.try_lock()) {
       for (auto wrapper : g_editors) {
         ImGui::SetNextWindowDockID(mainDockspace, ImGuiCond_FirstUseEver);
         
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xFF1E1E1E);
         ImGui::Begin(wrapper->name.c_str(), nullptr,
                      ImGuiWindowFlags_HorizontalScrollbar |
                      ImGuiWindowFlags_AlwaysHorizontalScrollbar);
@@ -165,6 +198,7 @@ namespace UI {
         
         wrapper->editor->render();
         
+        ImGui::PopStyleColor();
         ImGui::PopAllowKeyboardFocus();
         
         ImGui::End();
@@ -193,6 +227,8 @@ namespace UI {
       g_newEditorMutex.lock();
       g_editors.push_back(wrapper);
       g_newEditorMutex.unlock();
+
+      g_searchAndReplace = new SearchAndReplaceUI;
     }
   }
   
@@ -217,6 +253,7 @@ namespace UI {
       delete wrapper;
     }
     g_newEditorMutex.unlock();
+    delete g_searchAndReplace;
   }
   
 }

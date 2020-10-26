@@ -53,16 +53,18 @@ int main(int argc, char **argv) {
 
   auto &style = ImGui::GetStyle();
 
+  auto defaultBgColor = ImVec4(.176f, .176f, .188f, 1.f);
+
   float dpiScale = 1.f;
   Helper::WindowsHelper::tryGetDPIScale(dpiScale);
   style.WindowBorderSize = 1.f * dpiScale;
   style.FrameBorderSize = 1.f * dpiScale;
   style.FrameRounding = 5.f;
   style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(1, 1, 1, 0.03f);
-  style.Colors[ImGuiCol_Header] = ImVec4(0.26f, 0.59f, 0.98f, 0.25f);
+  style.Colors[ImGuiCol_Header] = defaultBgColor;
   style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
   style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.45f);
-  style.Colors[ImGuiCol_WindowBg] = ImVec4(0.129f, 0.137f, 0.11f, 1.f);
+  style.Colors[ImGuiCol_WindowBg] = defaultBgColor;
   style.ScaleAllSizes(dpiScale);
 
   ImGui_ImplWin32_Init(hwnd);
