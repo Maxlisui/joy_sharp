@@ -15,6 +15,7 @@ SET(IMGUI_SOURCES
         vendor/imgui/backends/imgui_impl_dx11.cpp
         vendor/imgui/backends/imgui_impl_win32.cpp
         vendor/imgui/imgui_widgets.cpp
+        vendor/imgui/misc/cpp/imgui_stdlib.cpp
         )
 
 set(SOURCES

@@ -19,9 +19,9 @@ void print(std::vector<Project::VSProject *> &projects, int intent) {
       std::cout << "\t";
     }
 
-    std::cout << p->name() << " is Folder: " << p->isFolder() << std::endl;
+    std::cout << p->name << " is Folder: " << p->isFolder << std::endl;
 
-    print(p->childs(), intent + 1);
+    print(p->childs, intent + 1);
   }
 }
 #endif
@@ -31,7 +31,7 @@ void addToProject(const string &parentId, const string &childId,
   auto parent = wrappers[parentId];
   auto child = wrappers[childId];
   child->touched = true;
-  parent->project->childs().emplace_back(child->project);
+  parent->project->childs.emplace_back(child->project);
 }
 
 Project::VSProject *createProjectFromLine(std::string &line, path &slnPath) {
@@ -47,13 +47,13 @@ Project::VSProject *createProjectFromLine(std::string &line, path &slnPath) {
   auto path = slnPath.parent_path().append(partialPath);
   auto id = line.substr(pathEnd + 5, 36);
 
-  project->setId(id);
-  project->setName(name);
-  project->setPath(path.string());
-  project->setDirectory(std::filesystem::directory_entry(path.parent_path()));
-  project->setTypeId(typeId);
-  project->setIsFolder(line.find(Helper::Constants::VS_FOLDER_ID) !=
-                       std::string::npos);
+  project->id = id;
+  project->name = name;
+  project->path = path.string();
+  project->directory = std::filesystem::directory_entry(path.parent_path());
+  project->typeId = typeId;
+  project->isFolder = line.find(Helper::Constants::VS_FOLDER_ID) !=
+                       std::string::npos;
 
   return project;
 }
@@ -62,7 +62,7 @@ void parseProject(Project::VSProject *project,
                   std::map<string, ProjectWrapper *> &wrappers) {
   std::string currentLine;
   bool inProjectReference = false;
-  std::ifstream projectStream(project->path());
+  std::ifstream projectStream(project->path);
   if (projectStream.is_open()) {
     while (std::getline(projectStream, currentLine)) {
 
@@ -75,7 +75,7 @@ void parseProject(Project::VSProject *project,
         // TODO: Speed
         // TODO: Else -> Project no in current sln
         if (wrappers.contains(id)) {
-          project->projectReferences().emplace_back(wrappers[id]->project);
+          project->projectReferences.emplace_back(wrappers[id]->project);
         }
       } else if (currentLine.find("Include") != string::npos) {
         auto start = currentLine.find_first_of('<') + 1;
@@ -87,9 +87,9 @@ void parseProject(Project::VSProject *project,
             currentLine.substr(contentStart, contentEnd - contentStart);
 
         if (tag == "Reference") {
-          project->references().push_back(content);
+          project->references.push_back(content);
         } else if (tag == "PackageReference") {
-          project->packageReferences().push_back(content);
+          project->packageReferences.push_back(content);
         } else if (tag == "ProjectReference") {
           inProjectReference = true;
         }
@@ -108,12 +108,12 @@ Project::VSSolution *VSHelper::parseVSsln(
   }
   auto sln = new Project::VSSolution;
 
-  sln->setPath(slnFilePath);
+  sln->path = slnFilePath;
 
   auto slnPath = path(slnFilePath);
 
   auto name = slnPath.stem().string();
-  sln->setName(name);
+  sln->name = name;
 
   std::string currentLine;
   std::ifstream slnStream(slnFilePath);
@@ -126,7 +126,7 @@ Project::VSSolution *VSHelper::parseVSsln(
         auto wrapper = new ProjectWrapper;
         wrapper->project = createProjectFromLine(currentLine, slnPath);
         wrapper->touched = false;
-        wrappers[wrapper->project->id()] = wrapper;
+        wrappers[wrapper->project->id] = wrapper;
       }
 
       if (currentLine.starts_with("\tGlobalSection(NestedProjects)")) {
@@ -152,15 +152,15 @@ Project::VSSolution *VSHelper::parseVSsln(
   auto size = wrappers.size();
   for (auto &wrapper : wrappers) {
     if (progessCallback) {
-      auto text = "Loading Project " + wrapper.second->project->name();
+      auto text = "Loading Project " + wrapper.second->project->name;
       progessCallback((float)counter / size, text.c_str());
     }
-    if (!wrapper.second->project->isFolder()) {
+    if (!wrapper.second->project->isFolder) {
       parseProject(wrapper.second->project, wrappers);
     }
 
     if (!wrapper.second->touched) {
-      sln->projects().emplace_back(wrapper.second->project);
+      sln->projects.emplace_back(wrapper.second->project);
     }
     delete wrapper.second;
     counter++;
@@ -171,7 +171,7 @@ Project::VSSolution *VSHelper::parseVSsln(
 
 #if DEBUG
   std::cout << "SOLUTION STRUCTURE" << std::endl;
-  print(sln->projects(), 0);
+  print(sln->projects, 0);
 #endif
 
   return sln;

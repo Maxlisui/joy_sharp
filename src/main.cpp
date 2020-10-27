@@ -22,7 +22,7 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 
   // Create application window
   WNDCLASSEX wc = {

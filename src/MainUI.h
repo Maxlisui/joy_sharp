@@ -4,8 +4,7 @@
 
 namespace UI {
 
-class MainUI {
-public:
+struct MainUI {
   static void render();
   static void setup(Project::VSSolution *sln);
   static void shutdown();

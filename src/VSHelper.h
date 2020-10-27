@@ -5,8 +5,7 @@
 #include <string>
 
 namespace Helper {
-class VSHelper {
-public:
+struct VSHelper {
   static Project::VSSolution *
   parseVSsln(const std::string &slnFilePath,
              const std::function<void(float, const char *)> &progessCallback);

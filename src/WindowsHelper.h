@@ -4,12 +4,8 @@
 
 namespace Helper {
 
-class WindowsHelper {
-
-public:
+struct WindowsHelper {
   static bool tryGetDPIScale(float &dpi);
-
-private:
   static bool ensureInitialized();
 };
 }

@@ -2,7 +2,6 @@
 #include "Tooling.h"
 #include "../vendor/IconFontCppHeaders/IconsFontAwesome5.h"
 #include "../vendor/imgui/imgui.h"
-#include "SearchAndReplaceUI.h"
 #include "EditorUI.h"
 #include "WelcomeUI.h"
 #include <fstream>
@@ -13,16 +12,15 @@ namespace UI {
   
   struct EditorWrapper {
     EditorUI *editor;
+    SearchAndReplaceUI *searchAndReplace;
     string name;
   };
   
   static Project::VSSolution *g_sln = nullptr;
   static bool g_renderWelcome = true;
   static bool g_renderSolutionExplorer = true;
-  static bool g_renderSearchAndReplace = false;
   static std::vector<EditorWrapper *> g_editors;
   static std::mutex g_newEditorMutex;
-  static SearchAndReplaceUI *g_searchAndReplace = nullptr;
   
   bool doRenderInSolutionExplorer(const std::string &name) {
     return !(name.ends_with("obj") || name.ends_with("proj") ||
@@ -74,10 +72,13 @@ namespace UI {
                         
                         EditorWrapper *wrapper = new EditorWrapper;
                         EditorUI *newEditor = new EditorUI;
+                        SearchAndReplaceUI *searchAndReplace = new SearchAndReplaceUI;
                         wrapper->editor = newEditor;
                         wrapper->name = entry.path().filename().string();
+                        wrapper->searchAndReplace = searchAndReplace;
                         
                         newEditor->setText(string(bytes.data(), fileSize));
+                        newEditor->setSearchAndReplace(searchAndReplace);
                         
                         g_newEditorMutex.lock();
                         g_editors.push_back(wrapper);
@@ -89,15 +90,15 @@ namespace UI {
   }
   
   void renderSlnExplorerRecursive(Project::VSProject *project) {
-    if (project->isFolder()) {
-      for (auto &p : project->childs()) {
-        if (ImGui::TreeNode(p->name().c_str())) {
+    if (project->isFolder) {
+      for (auto &p : project->childs) {
+        if (ImGui::TreeNode(p->name.c_str())) {
           renderSlnExplorerRecursive(p);
           ImGui::TreePop();
         }
       }
     } else {
-      renderSlnExplorerRecursive(project->directory(), false);
+      renderSlnExplorerRecursive(project->directory, false);
     }
   }
   
@@ -106,9 +107,9 @@ namespace UI {
     ImGui::SetNextWindowSize(ImVec2(0.f, 0.f), ImGuiCond_FirstUseEver);
     ImGui::Begin("Solution Explorer", &g_renderSolutionExplorer);
     
-    if (ImGui::TreeNode(g_sln->name().c_str())) {
-      for (auto &project : g_sln->projects()) {
-        if (ImGui::TreeNode(project->name().c_str())) {
+    if (ImGui::TreeNode(g_sln->name.c_str())) {
+      for (auto &project : g_sln->projects) {
+        if (ImGui::TreeNode(project->name.c_str())) {
           renderSlnExplorerRecursive(project);
           ImGui::TreePop();
         }
@@ -118,32 +119,10 @@ namespace UI {
     
     ImGui::End();
   }
-
-  void handleKeyboardInput() {
-    ImGuiIO &io = ImGui::GetIO();
-    auto shift = io.KeyShift;
-    auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
-    auto alt = io.ConfigMacOSXBehaviors ? io.KeyCtrl : io.KeyAlt;
-
-    io.WantCaptureKeyboard = true;
-    io.WantTextInput = true;
-    
-    if (ctrl && io.KeysDown[70]) { // ctrl + F Key
-      g_renderSearchAndReplace = true;
-      g_searchAndReplace->show(
-          SearchAndReplaceUI::SearchLocation::CurrentDocument);
-    } else if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape))) {
-      if (g_renderSearchAndReplace) {
-        g_renderSearchAndReplace = false;
-      }
-    }
-  }
   
   void renderMain() {
     PROFILE_START;
-
-    handleKeyboardInput();
-
+    
     ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetWorkPos());
     ImGui::SetNextWindowSize(viewport->GetWorkSize());
@@ -169,8 +148,6 @@ namespace UI {
       }
       if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Solution Explorer", nullptr, &g_renderSolutionExplorer);
-        ImGui::MenuItem("Search and Replace", nullptr,
-                        &g_renderSearchAndReplace);
         ImGui::EndMenu();
       }
       ImGui::EndMenuBar();
@@ -180,10 +157,6 @@ namespace UI {
     
     if (g_renderSolutionExplorer) {
       renderSlnExplorer();
-    }
-
-    if (g_renderSearchAndReplace) {
-      g_searchAndReplace->render();
     }
     
     if (g_newEditorMutex.try_lock()) {
@@ -216,6 +189,8 @@ namespace UI {
       EditorUI *editor = new EditorUI;
       wrapper->editor = editor;
       wrapper->name = "TestMax";
+      wrapper->searchAndReplace = new SearchAndReplaceUI;
+      wrapper->editor->setSearchAndReplace(wrapper->searchAndReplace);
       wrapper->editor->setText(
                                "  public void test(string test)\n  {\n    this.exist += "
                                "17;\n    _local.test "
@@ -227,8 +202,6 @@ namespace UI {
       g_newEditorMutex.lock();
       g_editors.push_back(wrapper);
       g_newEditorMutex.unlock();
-
-      g_searchAndReplace = new SearchAndReplaceUI;
     }
   }
   
@@ -250,10 +223,10 @@ namespace UI {
     g_newEditorMutex.lock();
     for (auto wrapper : g_editors) {
       delete wrapper->editor;
+      delete wrapper->searchAndReplace;
       delete wrapper;
     }
     g_newEditorMutex.unlock();
-    delete g_searchAndReplace;
   }
   
 }

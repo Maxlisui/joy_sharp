@@ -4,8 +4,7 @@
 
 namespace UI {
 
-class WelcomeUI {
-public:
+struct WelcomeUI {
   static Project::VSSolution *tryGetSln();
   static void render();
 };

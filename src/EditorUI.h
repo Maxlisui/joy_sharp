@@ -2,34 +2,26 @@
 
 #include "Constants.h"
 #include "../vendor/imgui/imgui.h"
+#include "SearchAndReplaceUI.h"
 #include <chrono>
 #include <vector>
 
 namespace UI {
-  class EditorUI {
-    public:
+  struct EditorUI {
     EditorUI()
-      : m_textStartPixel(30.f),
-    m_tabSize(4),
-    m_lineSpacing(1.f),
-    m_startTime(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-                .count()),
-    m_override(false),
-    m_lastClick(-1.f),
-    m_cursoPositionChanged(false),
-    m_readOnly(false),
-    m_textChanged(false) {}
-    
-    void setText(const string &text);
-    void render();
-    float getLineSpacing() { return m_lineSpacing; }
-    void setLineSpacing(float lineSpacing) { m_lineSpacing = lineSpacing; }
-    float getTextStartPixel() { return m_textStartPixel; }
-    void setTextStartPixel(float textStartPixel) {
-      m_textStartPixel = textStartPixel;
-    }
-    int getTabSize() { return m_tabSize; }
-    void setTabSize(int tabSize) { m_tabSize = tabSize; }
+      : textStartPixel(30.f),
+    tabSize(4),
+    lineSpacing(1.f),
+    startTime(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+              .count()),
+    override(false),
+    lastClick(-1.f),
+    cursoPositionChanged(false),
+    readOnly(false),
+    textChanged(false),
+    selectionMode(SelectionMode::Normal),
+    searchAndReplace(nullptr),
+    showSearchAndReplace(false) {}
     
     struct Glypth {
       Glypth(uint8_t character) : m_char(character) {}
@@ -37,57 +29,64 @@ namespace UI {
     };
     
     struct Coordinate {
-      Coordinate() : m_column(0), m_line(0) {}
-      Coordinate(int line, int column) : m_line(line), m_column(column) {}
+      Coordinate() : column(0), line(0) {}
+      Coordinate(int line, int column) : line(line), column(column) {}
       
       bool operator==(const Coordinate &o) const {
-        return m_line == o.m_line && m_column == o.m_column;
+        return line == o.line && column == o.column;
       }
       
       bool operator!=(const Coordinate &o) const {
-        return m_line != o.m_line || m_column != o.m_column;
+        return line != o.line || column != o.column;
       }
       
       bool operator<(const Coordinate &o) const {
-        if (m_line != o.m_line)
-          return m_line < o.m_line;
-        return m_column < o.m_column;
+        if (line != o.line)
+          return line < o.line;
+        return column < o.column;
       }
       
       bool operator>(const Coordinate &o) const {
-        if (m_line != o.m_line)
-          return m_line > o.m_line;
-        return m_column > o.m_column;
+        if (line != o.line)
+          return line > o.line;
+        return column > o.column;
       }
       
       bool operator<=(const Coordinate &o) const {
-        if (m_line != o.m_line)
-          return m_line < o.m_line;
-        return m_column <= o.m_column;
+        if (line != o.line)
+          return line < o.line;
+        return column <= o.column;
       }
       
       bool operator>=(const Coordinate &o) const {
-        if (m_line != o.m_line)
-          return m_line > o.m_line;
-        return m_column >= o.m_column;
+        if (line != o.line)
+          return line > o.line;
+        return column >= o.column;
       }
       
-      int m_line;
-      int m_column;
+      int line;
+      int column;
     };
     
     struct EditorState {
-      Coordinate m_selectionStart;
-      Coordinate m_selectionEnd;
-      Coordinate m_cursorPosition;
+      Coordinate selectionStart;
+      Coordinate selectionEnd;
+      Coordinate cursorPosition;
+    };
+    
+    struct SelectionRange {
+      Coordinate start;
+      Coordinate end;
     };
     
     enum class SelectionMode { Normal, Word, Line };
     
-    private:
     typedef std::vector<Glypth> Line;
     typedef std::vector<Line> Lines;
     
+    void setText(const string &text);
+    void render();
+    void setSearchAndReplace(SearchAndReplaceUI *search);
     float textDistanceToLineStart(const EditorUI::Coordinate &from) const;
     int getCharacterIndex(const EditorUI::Coordinate &from) const;
     int getLineMaxColumn(int line) const;
@@ -132,23 +131,27 @@ namespace UI {
     int insertTextAt(Coordinate &pos, const char *value);
     Line &insertLine(int index);
     void insertCharacter(ImWchar c, bool shift);
+    void findNext(const string& next);
     
-    Lines m_lines;
-    float m_lineSpacing;
-    float m_textStartPixel;
-    int m_tabSize;
-    string m_lineBuffer;
-    EditorState m_editorState;
-    uint64_t m_startTime;
-    Coordinate m_interactiveStart;
-    Coordinate m_interactiveEnd;
-    bool m_override;
-    float m_lastClick;
-    ImVec2 m_charAdvance;
-    SelectionMode m_selectionMode;
-    bool m_cursoPositionChanged;
-    bool m_readOnly;
-    bool m_textChanged;
+    Lines lines;
+    float lineSpacing;
+    float textStartPixel;
+    int tabSize;
+    string lineBuffer;
+    EditorState editorState;
+    uint64_t startTime;
+    Coordinate interactiveStart;
+    Coordinate interactiveEnd;
+    bool override;
+    float lastClick;
+    ImVec2 charAdvance;
+    SelectionMode selectionMode;
+    bool cursoPositionChanged;
+    bool readOnly;
+    bool textChanged;
+    SearchAndReplaceUI *searchAndReplace;
+    bool showSearchAndReplace;
+    std::vector<SelectionRange> searchResults;
   };
   
 } // namespace UI

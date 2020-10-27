@@ -1,22 +1,51 @@
 #include "SearchAndReplaceUI.h"
 #include "../vendor/imgui/imgui.h"
+#include "../vendor/imgui/misc/cpp/imgui_stdlib.cpp"
 
 namespace UI {
-void SearchAndReplaceUI::show(SearchLocation location) {
-  m_location = location;
-  m_locationInt = (int)location;
-  m_searchText = "";
-  m_replaceText = "";
-}
-
-void SearchAndReplaceUI::render() {
-  ImGui::Begin("Search and Replace");
-
-  ImGui::InputText("Search", m_searchText.data(), m_searchText.size());
-  ImGui::InputText("Replace", m_replaceText.data(), m_replaceText.size());
-
-  ImGui::Combo("Search Location", &m_locationInt, m_searchLocationText, IM_ARRAYSIZE(m_searchLocationText));
-
-  ImGui::End();
-}
+  void SearchAndReplaceUI::show() {
+    searchText = "";
+    replaceText = "";
+    showCalled = true;
+  }
+  
+  void SearchAndReplaceUI::render() {
+    ImGui::SetNextWindowSize(ImVec2(0.f, 0.f), ImGuiCond_Appearing);
+    
+    ImGui::Begin("Search and Replace");
+    
+    if (showCalled) {
+      ImGui::SetKeyboardFocusHere(0);
+      showCalled = false;
+    }
+    
+    ImGui::InputText("Search", &searchText);
+    ImGui::InputText("Replace", &replaceText);
+    
+    if (!editorMode) {
+      ImGui::Combo("Search Location", &location, searchLocationText, IM_ARRAYSIZE(searchLocationText));
+    }
+    ImGui::Checkbox("Match Case", &matchCase);
+    
+    if (editorMode) {
+      if (ImGui::Button("Find Previous")) {
+      }
+      
+      ImGui::SameLine();
+      
+      if (ImGui::Button("Find Next")) {
+        if (onFindNext) {
+          onFindNext(searchText);
+        }
+      }
+    } else {
+      if (ImGui::Button("Find All")) {
+      }
+    }
+    
+    if (ImGui::Button("Replace All")) {
+    }
+    
+    ImGui::End();
+  }
 }

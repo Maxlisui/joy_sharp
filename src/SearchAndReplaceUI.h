@@ -1,30 +1,28 @@
 #pragma once
 
 #include "Constants.h"
+#include <functional>
 
 namespace UI {
-class SearchAndReplaceUI {
- public:
-  enum class SearchLocation {
-    CurrentDocument = 0,
-    AllDocuments = 1,
-    Project = 2,
-    Solution = 3,
+  struct SearchAndReplaceUI {
+    SearchAndReplaceUI()
+      : searchLocationText{"Current Project", "Entire Solution"},
+    location(0),
+    showCalled(false),
+    matchCase(false),
+    editorMode(false) {}
+    
+    void show();
+    void render();
+    
+    string searchText;
+    string replaceText;
+    char* searchLocationText[4];
+    char* searchLocationTextSlim[2];
+    int location;
+    bool showCalled;
+    bool matchCase;
+    bool editorMode;
+    std::function<void(const string)> onFindNext;
   };
-
-  SearchAndReplaceUI()
-      : m_searchLocationText{"Current File", "All Open Files",
-                             "Current Project", "Entire Solution"},
-        m_location{SearchLocation::CurrentDocument} {}
-
-  void show(SearchLocation location);
-  void render();
-
- private:
-  string m_searchText;
-  string m_replaceText;
-  char* m_searchLocationText[4];
-  SearchLocation m_location;
-  int m_locationInt = 0;
-};
 }  // namespace UI

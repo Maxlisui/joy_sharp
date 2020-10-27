@@ -3,6 +3,7 @@
 #include "../vendor/imgui/imgui.h"
 #include "../vendor/imgui/imgui_internal.h"
 #include "../vendor/stb/stb_sprintf.h"
+#include <iostream>
 
 namespace UI {
   
@@ -77,22 +78,22 @@ namespace UI {
   }
   
   inline bool EditorUI::hasSelection() const {
-    return m_editorState.m_selectionEnd > m_editorState.m_selectionStart;
+    return editorState.selectionEnd > editorState.selectionStart;
   }
   
   inline std::string EditorUI::getSelectedText() const {
-    return getText(m_editorState.m_selectionStart, m_editorState.m_selectionEnd);
+    return getText(editorState.selectionStart, editorState.selectionEnd);
   }
   
   int EditorUI::getLineMaxColumn(int l) const {
     PROFILE_START;
-    if (l >= m_lines.size()) return 0;
-    auto& line = m_lines[l];
+    if (l >= lines.size()) return 0;
+    auto& line = lines[l];
     int col = 0;
     for (unsigned i = 0; i < line.size();) {
       auto c = line[i].m_char;
       if (c == '\t')
-        col = (col / m_tabSize) * m_tabSize + m_tabSize;
+        col = (col / tabSize) * tabSize + tabSize;
       else
         col++;
       i += UTF8CharLength(c);
@@ -102,18 +103,18 @@ namespace UI {
   
   inline int EditorUI::getPageSize() const {
     float height = ImGui::GetWindowHeight() - 20.f;
-    return (int)floor(height / m_charAdvance.y);
+    return (int)floor(height / charAdvance.y);
   }
   
   int EditorUI::getCharacterIndex(const EditorUI::Coordinate& from) const {
     PROFILE_START;
-    if (from.m_line >= m_lines.size()) return -1;
-    auto& line = m_lines[from.m_line];
+    if (from.line >= lines.size()) return -1;
+    auto& line = lines[from.line];
     int c = 0;
     int i = 0;
-    for (; i < line.size() && c < from.m_column;) {
+    for (; i < line.size() && c < from.column;) {
       if (line[i].m_char == '\t') {
-        c = (c / m_tabSize) * m_tabSize + m_tabSize;
+        c = (c / tabSize) * tabSize + tabSize;
       } else {
         ++c;
       }
@@ -126,7 +127,7 @@ namespace UI {
   
   float EditorUI::textDistanceToLineStart(const EditorUI::Coordinate& from) const {
     PROFILE_START;
-    auto& line = m_lines[from.m_line];
+    auto& line = lines[from.line];
     
     float distance = 0.0f;
     float spaceSize = ImGui::GetFont()
@@ -139,8 +140,8 @@ namespace UI {
     for (size_t i = 0u; i < line.size() && i < colIndex;) {
       if (line[i].m_char == '\t') {
         distance = (1.f + std::floor((1.f + distance) /
-                                     (float(m_tabSize) * spaceSize))) *
-          (float(m_tabSize) * spaceSize);
+                                     (float(tabSize) * spaceSize))) *
+          (float(tabSize) * spaceSize);
         i++;
       } else {
         // TODO: Cache this
@@ -162,18 +163,18 @@ namespace UI {
   
   void inline EditorUI::deleteLine(int start, int end) {
     PROFILE_START;
-    m_lines.erase(m_lines.begin() + start, m_lines.begin() + end);
-    m_textChanged = true;
+    lines.erase(lines.begin() + start, lines.begin() + end);
+    textChanged = true;
   }
-
+  
   void inline EditorUI::deleteLine(int index) {
-    m_lines.erase(m_lines.begin() + index);
-    m_textChanged = true;
+    lines.erase(lines.begin() + index);
+    textChanged = true;
   }
   
   void EditorUI::deleteRange(const Coordinate& from, const Coordinate& to) {
     PROFILE_START;
-    if (m_readOnly) {
+    if (readOnly) {
       return;
     }
     
@@ -184,52 +185,52 @@ namespace UI {
     auto start = getCharacterIndex(from);
     auto end = getCharacterIndex(to);
     
-    if (from.m_line == to.m_line) {
-      auto& line = m_lines[from.m_line];
-      auto n = getLineMaxColumn(from.m_line);
-      if (to.m_column >= n) {
+    if (from.line == to.line) {
+      auto& line = lines[from.line];
+      auto n = getLineMaxColumn(from.line);
+      if (to.column >= n) {
         line.erase(line.begin() + start, line.end());
       } else {
         line.erase(line.begin() + start, line.begin() + end);
       }
     } else {
-      auto& firstLine = m_lines[from.m_line];
-      auto& lastLine = m_lines[to.m_line];
+      auto& firstLine = lines[from.line];
+      auto& lastLine = lines[to.line];
       
       firstLine.erase(firstLine.begin() + start, firstLine.end());
       lastLine.erase(lastLine.begin(), lastLine.begin() + end);
       
-      if (from.m_line < to.m_line) {
+      if (from.line < to.line) {
         firstLine.insert(firstLine.end(), lastLine.begin(), lastLine.end());
-        deleteLine(from.m_line + 1, to.m_line + 1);
+        deleteLine(from.line + 1, to.line + 1);
       }
     }
-    m_textChanged = true;
+    textChanged = true;
   }
   
   std::string EditorUI::getText(const Coordinate& from, const Coordinate& to) const {
     PROFILE_START;
     std::string result;
     
-    int lStart = from.m_line;
-    int lEnd = to.m_line;
+    int lStart = from.line;
+    int lEnd = to.line;
     int cIndexStart = getCharacterIndex(from);
     int cIndexEnd = getCharacterIndex(to);
     
     size_t s = 0;
     
     for (size_t i = lStart; i < lEnd; i++) {
-      s += m_lines[i].size();
+      s += lines[i].size();
     }
     
     result.reserve(s + s / 8);
     
     while (cIndexStart < cIndexEnd || lStart < lEnd) {
-      if(lStart >= (int)m_lines.size()) {
+      if(lStart >= (int)lines.size()) {
         break;
       }
       
-      auto& line = m_lines[lStart];
+      auto& line = lines[lStart];
       if(cIndexStart < (int)line.size()) {
         result += line[cIndexStart].m_char;
         cIndexStart++;
@@ -245,33 +246,33 @@ namespace UI {
   
   void EditorUI::setText(const string& text) {
     PROFILE_START;
-    m_lines.clear();
-    m_lines.emplace_back(Line());
+    lines.clear();
+    lines.emplace_back(Line());
     for (auto character : text) {
       if (character == '\r') {
       } else if (character == '\n') {
-        m_lines.emplace_back(Line());
+        lines.emplace_back(Line());
       } else {
-        m_lines.back().emplace_back(Glypth(character));
+        lines.back().emplace_back(Glypth(character));
       }
     }
   }
   
   EditorUI::Coordinate EditorUI::sanitizeCoordinates(const Coordinate& value) const {
     PROFILE_START;
-    int line = value.m_line;
-    int column = value.m_column;
-    if (line >= (int)m_lines.size()) {
-      if (m_lines.empty()) {
+    int line = value.line;
+    int column = value.column;
+    if (line >= (int)lines.size()) {
+      if (lines.empty()) {
         line = 0;
         column = 0;
       } else {
-        line = (int)m_lines.size() - 1;
+        line = (int)lines.size() - 1;
         column = getLineMaxColumn(line);
       }
       return {line, column};
     }
-    column = m_lines.empty() ? 0 : std::min(column, getLineMaxColumn(line));
+    column = lines.empty() ? 0 : std::min(column, getLineMaxColumn(line));
     return {line, column};
   }
   
@@ -280,12 +281,12 @@ namespace UI {
     ImVec2 origin = ImGui::GetCursorScreenPos();
     ImVec2 local(position.x - origin.x, position.y - origin.y);
     
-    int lineNo = std::max(0, (int)floor(local.y / m_charAdvance.y));
+    int lineNo = std::max(0, (int)floor(local.y / charAdvance.y));
     
     int columnCoord = 0;
     
-    if (lineNo >= 0 && lineNo < (int)m_lines.size()) {
-      auto& line = m_lines.at(lineNo);
+    if (lineNo >= 0 && lineNo < (int)lines.size()) {
+      auto& line = lines.at(lineNo);
       
       int columnIndex = 0;
       float columnX = 0.0f;
@@ -300,12 +301,12 @@ namespace UI {
             .x;
           float oldX = columnX;
           float newColumnX = (1.0f + std::floor((1.0f + columnX) /
-                                                (float(m_tabSize) * spaceSize))) *
-            (float(m_tabSize) * spaceSize);
+                                                (float(tabSize) * spaceSize))) *
+            (float(tabSize) * spaceSize);
           columnWidth = newColumnX - oldX;
-          if (m_textStartPixel + columnX + columnWidth * 0.5f > local.x) break;
+          if (textStartPixel + columnX + columnWidth * 0.5f > local.x) break;
           columnX = newColumnX;
-          columnCoord = (columnCoord / m_tabSize) * m_tabSize + m_tabSize;
+          columnCoord = (columnCoord / tabSize) * tabSize + tabSize;
           columnIndex++;
         } else {
           char buf[7];
@@ -317,7 +318,7 @@ namespace UI {
             ImGui::GetFont()
             ->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, buf)
             .x;
-          if (m_textStartPixel + columnX + columnWidth * 0.5f > local.x) break;
+          if (textStartPixel + columnX + columnWidth * 0.5f > local.x) break;
           columnX += columnWidth;
           columnCoord++;
         }
@@ -329,11 +330,11 @@ namespace UI {
   
   EditorUI::Coordinate EditorUI::findWordEnd(const Coordinate& from) const {
     PROFILE_START;
-    if (from.m_line >= (int)m_lines.size()) {
+    if (from.line >= (int)lines.size()) {
       return from;
     }
     
-    auto& line = m_lines[from.m_line];
+    auto& line = lines[from.line];
     auto cindex = getCharacterIndex(from);
     
     if (cindex >= (int)line.size()) {
@@ -358,16 +359,16 @@ namespace UI {
       }
     }
     
-    return {from.m_line, getCharacterColumn(from.m_line, cindex)};
+    return {from.line, getCharacterColumn(from.line, cindex)};
   }
   
   EditorUI::Coordinate EditorUI::findWordStart(const Coordinate& from) const {
     PROFILE_START;
-    if (from.m_line >= (int)m_lines.size()) {
+    if (from.line >= (int)lines.size()) {
       return from;
     }
     
-    auto& line = m_lines[from.m_line];
+    auto& line = lines[from.line];
     auto cindex = getCharacterIndex(from);
     
     if (cindex >= (int)line.size()) {
@@ -381,7 +382,7 @@ namespace UI {
     }
     
     if(moved) {
-      return {from.m_line, getCharacterColumn(from.m_line, cindex)};
+      return {from.line, getCharacterColumn(from.line, cindex)};
     }
     
     moved = false;
@@ -392,12 +393,12 @@ namespace UI {
     }
     
     if(moved) {
-      return {from.m_line, getCharacterColumn(from.m_line, cindex + 1)};
+      return {from.line, getCharacterColumn(from.line, cindex + 1)};
     }
     
     while (true) {
       if(cindex <= 0) {
-        return {from.m_line, getCharacterColumn(from.m_line, cindex)};
+        return {from.line, getCharacterColumn(from.line, cindex)};
       }
       
       auto c = line[cindex].m_char;
@@ -409,16 +410,16 @@ namespace UI {
       }
     }
     
-    return {from.m_line, getCharacterColumn(from.m_line, cindex)};
+    return {from.line, getCharacterColumn(from.line, cindex)};
   }
   
   bool EditorUI::isOnWordBoundary(const Coordinate& at) const {
     PROFILE_START;
-    if (at.m_line >= (int)m_lines.size() || at.m_column == 0) {
+    if (at.line >= (int)lines.size() || at.column == 0) {
       return true;
     }
     
-    auto& line = m_lines[at.m_line];
+    auto& line = lines[at.line];
     auto cindex = getCharacterIndex(at);
     
     if (cindex >= (int)line.size()) {
@@ -431,35 +432,35 @@ namespace UI {
   void EditorUI::setSelection(const Coordinate& start, const Coordinate& end,
                               SelectionMode mode) {
     PROFILE_START;
-    auto oldSelStart = m_editorState.m_selectionStart;
-    auto oldSelEnd = m_editorState.m_selectionEnd;
+    auto oldSelStart = editorState.selectionStart;
+    auto oldSelEnd = editorState.selectionEnd;
     
-    m_editorState.m_selectionStart = sanitizeCoordinates(start);
-    m_editorState.m_selectionEnd = sanitizeCoordinates(end);
-    if (m_editorState.m_selectionStart > m_editorState.m_selectionEnd) {
-      std::swap(m_editorState.m_selectionStart, m_editorState.m_selectionEnd);
+    editorState.selectionStart = sanitizeCoordinates(start);
+    editorState.selectionEnd = sanitizeCoordinates(end);
+    if (editorState.selectionStart > editorState.selectionEnd) {
+      std::swap(editorState.selectionStart, editorState.selectionEnd);
     }
     
     switch (mode) {
       case SelectionMode::Normal:
       break;
       case SelectionMode::Word: {
-        m_editorState.m_selectionStart =
-          findWordStart(m_editorState.m_selectionStart);
+        editorState.selectionStart =
+          findWordStart(editorState.selectionStart);
         
-        if (!isOnWordBoundary(m_editorState.m_selectionEnd)) {
-          m_editorState.m_selectionEnd =
-            findWordEnd(findWordStart(m_editorState.m_selectionEnd));
+        if (!isOnWordBoundary(editorState.selectionEnd)) {
+          editorState.selectionEnd =
+            findWordEnd(findWordStart(editorState.selectionEnd));
         }
         break;
       }
       case SelectionMode::Line: {
-        const auto lineNo = m_editorState.m_selectionEnd.m_line;
+        const auto lineNo = editorState.selectionEnd.line;
         const auto lineSize =
-          (size_t)lineNo < m_lines.size() ? m_lines[lineNo].size() : 0;
-        m_editorState.m_selectionStart =
-          Coordinate(m_editorState.m_selectionStart.m_line, 0);
-        m_editorState.m_selectionEnd =
+          (size_t)lineNo < lines.size() ? lines[lineNo].size() : 0;
+        editorState.selectionStart =
+          Coordinate(editorState.selectionStart.line, 0);
+        editorState.selectionEnd =
           Coordinate(lineNo, getLineMaxColumn(lineNo));
         break;
       }
@@ -467,9 +468,9 @@ namespace UI {
       break;
     }
     
-    if (m_editorState.m_selectionStart != oldSelStart ||
-        m_editorState.m_selectionEnd != oldSelEnd) {
-      m_cursoPositionChanged = true;
+    if (editorState.selectionStart != oldSelStart ||
+        editorState.selectionEnd != oldSelEnd) {
+      cursoPositionChanged = true;
     }
   }
   
@@ -487,46 +488,46 @@ namespace UI {
         auto t = ImGui::GetTime();
         auto tripleClick =
           click && !doubleClick &&
-          (m_lastClick != -1.0f && (t - m_lastClick) < io.MouseDoubleClickTime);
+          (lastClick != -1.0f && (t - lastClick) < io.MouseDoubleClickTime);
         
         if (tripleClick) {
           if (!ctrl) {
-            m_editorState.m_cursorPosition = m_interactiveEnd =
-              m_interactiveStart = screenPosToCoordinates(ImGui::GetMousePos());
-            m_selectionMode = SelectionMode::Line;
-            setSelection(m_interactiveStart, m_interactiveEnd, m_selectionMode);
+            editorState.cursorPosition = interactiveEnd =
+              interactiveStart = screenPosToCoordinates(ImGui::GetMousePos());
+            selectionMode = SelectionMode::Line;
+            setSelection(interactiveStart, interactiveEnd, selectionMode);
           }
           
-          m_lastClick = -1.0f;
+          lastClick = -1.0f;
         } else if (doubleClick) {
           if (!ctrl) {
-            m_editorState.m_cursorPosition = m_interactiveEnd =
-              m_interactiveStart = screenPosToCoordinates(ImGui::GetMousePos());
-            if (m_selectionMode == SelectionMode::Line) {
-              m_selectionMode = SelectionMode::Normal;
+            editorState.cursorPosition = interactiveEnd =
+              interactiveStart = screenPosToCoordinates(ImGui::GetMousePos());
+            if (selectionMode == SelectionMode::Line) {
+              selectionMode = SelectionMode::Normal;
             } else {
-              m_selectionMode = SelectionMode::Word;
+              selectionMode = SelectionMode::Word;
             }
-            setSelection(m_interactiveStart, m_interactiveEnd, m_selectionMode);
+            setSelection(interactiveStart, interactiveEnd, selectionMode);
           }
           
-          m_lastClick = (float)ImGui::GetTime();
+          lastClick = (float)ImGui::GetTime();
         } else if (click) {
-          m_editorState.m_cursorPosition = m_interactiveEnd = m_interactiveStart =
+          editorState.cursorPosition = interactiveEnd = interactiveStart =
             screenPosToCoordinates(ImGui::GetMousePos());
           if (ctrl) {
-            m_selectionMode = SelectionMode::Word;
+            selectionMode = SelectionMode::Word;
           } else {
-            m_selectionMode = SelectionMode::Normal;
+            selectionMode = SelectionMode::Normal;
           }
-          setSelection(m_interactiveStart, m_interactiveEnd, m_selectionMode);
+          setSelection(interactiveStart, interactiveEnd, selectionMode);
           
-          m_lastClick = (float)ImGui::GetTime();
+          lastClick = (float)ImGui::GetTime();
         } else if (ImGui::IsMouseDragging(0) && ImGui::IsMouseDown(0)) {
           io.WantCaptureMouse = true;
-          m_editorState.m_cursorPosition = m_interactiveEnd =
+          editorState.cursorPosition = interactiveEnd =
             screenPosToCoordinates(ImGui::GetMousePos());
-          setSelection(m_interactiveStart, m_interactiveEnd, m_selectionMode);
+          setSelection(interactiveStart, interactiveEnd, selectionMode);
         }
       }
     }
@@ -534,7 +535,7 @@ namespace UI {
   
   EditorUI::Coordinate EditorUI::getActualCursorCoordinates() const {
     PROFILE_START;
-    return sanitizeCoordinates(m_editorState.m_cursorPosition);
+    return sanitizeCoordinates(editorState.cursorPosition);
   }
   
   void EditorUI::ensureCursorVisible() {
@@ -545,54 +546,54 @@ namespace UI {
     auto height = ImGui::GetWindowHeight();
     auto width = ImGui::GetWindowWidth();
     
-    auto top = 1 + (int)ceil(scrollY / m_charAdvance.y);
-    auto bottom = (int)ceil((scrollY + height) / m_charAdvance.y);
+    auto top = 1 + (int)ceil(scrollY / charAdvance.y);
+    auto bottom = (int)ceil((scrollY + height) / charAdvance.y);
     
-    auto left = (int)ceil(scrollX / m_charAdvance.x);
-    auto right = (int)ceil((scrollX + width) / m_charAdvance.x);
+    auto left = (int)ceil(scrollX / charAdvance.x);
+    auto right = (int)ceil((scrollX + width) / charAdvance.x);
     
     auto pos = getActualCursorCoordinates();
     auto len = textDistanceToLineStart(pos);
     
-    if (pos.m_line < top) {
-      ImGui::SetScrollY(std::max(0.0f, (pos.m_line - 1) * m_charAdvance.y));
+    if (pos.line < top) {
+      ImGui::SetScrollY(std::max(0.0f, (pos.line - 1) * charAdvance.y));
     }
-    if (pos.m_line > bottom - 4) {
+    if (pos.line > bottom - 4) {
       ImGui::SetScrollY(
-                        std::max(0.0f, (pos.m_line + 4) * m_charAdvance.y - height));
+                        std::max(0.0f, (pos.line + 4) * charAdvance.y - height));
     }
-    if (len + m_textStartPixel < left + 4) {
-      ImGui::SetScrollX(std::max(0.0f, len + m_textStartPixel - 4));
+    if (len + textStartPixel < left + 4) {
+      ImGui::SetScrollX(std::max(0.0f, len + textStartPixel - 4));
     }
-    if (len + m_textStartPixel > right - 4) {
-      ImGui::SetScrollX(std::max(0.0f, len + m_textStartPixel + 4 - width));
+    if (len + textStartPixel > right - 4) {
+      ImGui::SetScrollX(std::max(0.0f, len + textStartPixel + 4 - width));
     }
   }
   
   void EditorUI::setCursorPosition(const Coordinate& pos) {
     PROFILE_START;
-    if (m_editorState.m_cursorPosition == pos) {
+    if (editorState.cursorPosition == pos) {
       return;
     }
     
-    m_editorState.m_cursorPosition = pos;
-    m_cursoPositionChanged = true;
+    editorState.cursorPosition = pos;
+    cursoPositionChanged = true;
     ensureCursorVisible();
   }
   
   int EditorUI::getCharacterColumn(int lineIndex, int index) const {
     PROFILE_START;
-    if (lineIndex >= m_lines.size()) {
+    if (lineIndex >= lines.size()) {
       return 0;
     }
-    auto& line = m_lines[lineIndex];
+    auto& line = lines[lineIndex];
     int col = 0;
     int i = 0;
     while (i < index && i < (int)line.size()) {
       auto c = line[i].m_char;
       i += UTF8CharLength(c);
       if (c == '\t')
-        col = (col / m_tabSize) * m_tabSize + m_tabSize;
+        col = (col / tabSize) * tabSize + tabSize;
       else
         col++;
     }
@@ -601,71 +602,71 @@ namespace UI {
   
   void EditorUI::moveUp(int amount, bool shift) {
     PROFILE_START;
-    auto oldPos = m_editorState.m_cursorPosition;
-    m_editorState.m_cursorPosition.m_line =
-      std::max(0, m_editorState.m_cursorPosition.m_line - amount);
+    auto oldPos = editorState.cursorPosition;
+    editorState.cursorPosition.line =
+      std::max(0, editorState.cursorPosition.line - amount);
     
-    if (oldPos != m_editorState.m_cursorPosition) {
+    if (oldPos != editorState.cursorPosition) {
       if (shift) {
-        if (oldPos == m_interactiveStart) {
-          m_interactiveStart = m_editorState.m_cursorPosition;
-        } else if (oldPos == m_interactiveEnd) {
-          m_interactiveEnd = m_editorState.m_cursorPosition;
+        if (oldPos == interactiveStart) {
+          interactiveStart = editorState.cursorPosition;
+        } else if (oldPos == interactiveEnd) {
+          interactiveEnd = editorState.cursorPosition;
         } else {
-          m_interactiveStart = m_editorState.m_cursorPosition;
-          m_interactiveEnd = oldPos;
+          interactiveStart = editorState.cursorPosition;
+          interactiveEnd = oldPos;
         }
       } else {
-        m_interactiveStart = m_interactiveEnd = m_editorState.m_cursorPosition;
+        interactiveStart = interactiveEnd = editorState.cursorPosition;
       }
-      setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+      setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
       ensureCursorVisible();
     }
   }
   
   void EditorUI::moveDown(int amount, bool shift) {
     PROFILE_START;
-    auto oldPos = m_editorState.m_cursorPosition;
-    m_editorState.m_cursorPosition.m_line =
-      std::max(0, std::min((int)m_lines.size() - 1,
-                           m_editorState.m_cursorPosition.m_line + amount));
+    auto oldPos = editorState.cursorPosition;
+    editorState.cursorPosition.line =
+      std::max(0, std::min((int)lines.size() - 1,
+                           editorState.cursorPosition.line + amount));
     
-    if (m_editorState.m_cursorPosition != oldPos) {
+    if (editorState.cursorPosition != oldPos) {
       if (shift) {
-        if (oldPos == m_interactiveEnd) {
-          m_interactiveEnd = m_editorState.m_cursorPosition;
-        } else if (oldPos == m_interactiveStart) {
-          m_interactiveStart = m_editorState.m_cursorPosition;
+        if (oldPos == interactiveEnd) {
+          interactiveEnd = editorState.cursorPosition;
+        } else if (oldPos == interactiveStart) {
+          interactiveStart = editorState.cursorPosition;
         } else {
-          m_interactiveStart = oldPos;
-          m_interactiveEnd = m_editorState.m_cursorPosition;
+          interactiveStart = oldPos;
+          interactiveEnd = editorState.cursorPosition;
         }
       } else {
-        m_interactiveStart = m_interactiveEnd = m_editorState.m_cursorPosition;
+        interactiveStart = interactiveEnd = editorState.cursorPosition;
       }
-      setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+      setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
       ensureCursorVisible();
     }
   }
   
   void EditorUI::moveLeft(int amount, bool shift, bool ctrl) {
     PROFILE_START;
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
     
-    auto oldPos = m_editorState.m_cursorPosition;
-    m_editorState.m_cursorPosition = getActualCursorCoordinates();
+    auto oldPos = editorState.cursorPosition;
+    editorState.cursorPosition = getActualCursorCoordinates();
     
-    auto line = m_editorState.m_cursorPosition.m_line;
-    auto cindex = getCharacterIndex(m_editorState.m_cursorPosition);
+    auto line = editorState.cursorPosition.line;
+    auto cindex = getCharacterIndex(editorState.cursorPosition);
     
     while (amount-- > 0) {
       if (cindex == 0) {
         if (line > 0) {
           --line;
-          if (m_lines.size() > line) {
-            cindex = (int)m_lines[line].size();
+          if (lines.size() > line) {
+            cindex = (int)lines[line].size();
           } else {
             cindex = 0;
           }
@@ -673,41 +674,41 @@ namespace UI {
       } else {
         --cindex;
         if (cindex > 0) {
-          if ((int)m_lines.size() > line) {
-            while (cindex > 0 && isUTF8Sequence(m_lines[line][cindex].m_char)) {
+          if ((int)lines.size() > line) {
+            while (cindex > 0 && isUTF8Sequence(lines[line][cindex].m_char)) {
               --cindex;
             }
           }
         }
       }
       
-      m_editorState.m_cursorPosition =
+      editorState.cursorPosition =
         Coordinate(line, getCharacterColumn(line, cindex));
       
       if (ctrl) {
-        m_editorState.m_cursorPosition =
-          findWordStart(m_editorState.m_cursorPosition);
-        cindex = getCharacterIndex(m_editorState.m_cursorPosition);
+        editorState.cursorPosition =
+          findWordStart(editorState.cursorPosition);
+        cindex = getCharacterIndex(editorState.cursorPosition);
       }
     }
     
-    m_editorState.m_cursorPosition =
+    editorState.cursorPosition =
       Coordinate(line, getCharacterColumn(line, cindex));
     
     if (shift) {
-      if (oldPos == m_interactiveStart) {
-        m_interactiveStart = m_editorState.m_cursorPosition;
-      } else if (oldPos == m_interactiveEnd) {
-        m_interactiveEnd = m_editorState.m_cursorPosition;
+      if (oldPos == interactiveStart) {
+        interactiveStart = editorState.cursorPosition;
+      } else if (oldPos == interactiveEnd) {
+        interactiveEnd = editorState.cursorPosition;
       } else {
-        m_interactiveStart = m_editorState.m_cursorPosition;
-        m_interactiveEnd = oldPos;
+        interactiveStart = editorState.cursorPosition;
+        interactiveEnd = oldPos;
       }
     } else {
-      m_interactiveStart = m_interactiveEnd = m_editorState.m_cursorPosition;
+      interactiveStart = interactiveEnd = editorState.cursorPosition;
     }
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
     ensureCursorVisible();
   }
   
@@ -715,12 +716,12 @@ namespace UI {
     PROFILE_START;
     Coordinate at = from;
     
-    if (at.m_line >= (int)m_lines.size()) {
+    if (at.line >= (int)lines.size()) {
       return at;
     }
     
     auto cindex = getCharacterIndex(at);
-    auto& line = m_lines[at.m_line];
+    auto& line = lines[at.line];
     bool moved = false;
     
     while (cindex < (int)line.size() && isspace(line[cindex].m_char)) {
@@ -729,7 +730,7 @@ namespace UI {
     }
     
     if (moved) {
-      return {at.m_line, getCharacterColumn(at.m_line, cindex)};
+      return {at.line, getCharacterColumn(at.line, cindex)};
     }
     
     moved = false;
@@ -740,12 +741,12 @@ namespace UI {
     }
     
     if (moved) {
-      return {at.m_line, getCharacterColumn(at.m_line, cindex)};
+      return {at.line, getCharacterColumn(at.line, cindex)};
     }
     
     while (true) {
       if (cindex >= line.size()) {
-        return {at.m_line, getCharacterColumn(at.m_line, cindex)};
+        return {at.line, getCharacterColumn(at.line, cindex)};
       }
       
       if (isANWord(line[cindex].m_char)) {
@@ -758,172 +759,172 @@ namespace UI {
       }
     }
     
-    return {at.m_line, getCharacterColumn(at.m_line, cindex)};
+    return {at.line, getCharacterColumn(at.line, cindex)};
   }
   
   void EditorUI::moveRight(int amount, bool shift, bool ctrl) {
     PROFILE_START;
-    auto oldPos = m_editorState.m_cursorPosition;
+    auto oldPos = editorState.cursorPosition;
     
-    if (m_lines.empty() || oldPos.m_line >= m_lines.size()) {
+    if (lines.empty() || oldPos.line >= lines.size()) {
       return;
     }
     
     auto cindex = getCharacterIndex(oldPos);
     
     while (amount-- > 0) {
-      auto lineIndex = m_editorState.m_cursorPosition.m_line;
-      auto& line = m_lines[lineIndex];
+      auto lineIndex = editorState.cursorPosition.line;
+      auto& line = lines[lineIndex];
       
       if (cindex >= line.size()) {
-        if (m_editorState.m_cursorPosition.m_line < m_lines.size() - 1) {
-          m_editorState.m_cursorPosition.m_line =
-            std::max(0, std::min((int)m_lines.size() - 1,
-                                 m_editorState.m_cursorPosition.m_line + 1));
-          m_editorState.m_cursorPosition.m_column = 0;
+        if (editorState.cursorPosition.line < lines.size() - 1) {
+          editorState.cursorPosition.line =
+            std::max(0, std::min((int)lines.size() - 1,
+                                 editorState.cursorPosition.line + 1));
+          editorState.cursorPosition.column = 0;
         } else {
           return;
         }
       } else {
         if (ctrl) {
-          m_editorState.m_cursorPosition =
-            findNextWord(m_editorState.m_cursorPosition);
+          editorState.cursorPosition =
+            findNextWord(editorState.cursorPosition);
         } else {
           cindex += UTF8CharLength(line[cindex].m_char);
-          m_editorState.m_cursorPosition =
+          editorState.cursorPosition =
             Coordinate(lineIndex, getCharacterColumn(lineIndex, cindex));
         }
       }
     }
     
     if (shift) {
-      if (oldPos == m_interactiveStart) {
-        m_interactiveStart = m_editorState.m_cursorPosition;
-      } else if (oldPos == m_interactiveEnd) {
-        m_interactiveEnd = sanitizeCoordinates(m_editorState.m_cursorPosition);
+      if (oldPos == interactiveStart) {
+        interactiveStart = editorState.cursorPosition;
+      } else if (oldPos == interactiveEnd) {
+        interactiveEnd = sanitizeCoordinates(editorState.cursorPosition);
       } else {
-        m_interactiveStart = oldPos;
-        m_interactiveEnd = m_editorState.m_cursorPosition;
+        interactiveStart = oldPos;
+        interactiveEnd = editorState.cursorPosition;
       }
     } else {
-      m_interactiveStart = m_interactiveEnd = m_editorState.m_cursorPosition;
+      interactiveStart = interactiveEnd = editorState.cursorPosition;
     }
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
     ensureCursorVisible();
   }
   
   void EditorUI::moveEnd(bool shift) {
     PROFILE_START;
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
     
-    int lineNo = m_editorState.m_cursorPosition.m_line;
-    auto& line = m_lines[lineNo];
+    int lineNo = editorState.cursorPosition.line;
+    auto& line = lines[lineNo];
     
     if(line.empty()) {
       return;
     }
     
-    auto old = m_editorState.m_cursorPosition;
+    auto old = editorState.cursorPosition;
     
-    m_editorState.m_cursorPosition = Coordinate(lineNo, getLineMaxColumn(lineNo));
+    editorState.cursorPosition = Coordinate(lineNo, getLineMaxColumn(lineNo));
     
     if(shift) {
       if(hasSelection()) {
-        m_interactiveEnd = m_editorState.m_cursorPosition;
-        m_interactiveStart = m_editorState.m_selectionStart;
+        interactiveEnd = editorState.cursorPosition;
+        interactiveStart = editorState.selectionStart;
       } else {
-        m_interactiveStart = old;
-        m_interactiveEnd = m_editorState.m_cursorPosition;
+        interactiveStart = old;
+        interactiveEnd = editorState.cursorPosition;
       }
     } else {
-      m_interactiveStart = m_interactiveEnd = m_editorState.m_cursorPosition;
+      interactiveStart = interactiveEnd = editorState.cursorPosition;
     }
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
     ensureCursorVisible();
   }
   
   void EditorUI::moveHome(bool shift) {
     PROFILE_START;
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
     
-    int lineNo = m_editorState.m_cursorPosition.m_line;
+    int lineNo = editorState.cursorPosition.line;
     
-    int oldCindex = getCharacterIndex(m_editorState.m_cursorPosition);
+    int oldCindex = getCharacterIndex(editorState.cursorPosition);
     
-    auto& line = m_lines[lineNo];
+    auto& line = lines[lineNo];
     
     if(line.empty()) {
       return;
     }
-    auto old = m_editorState.m_cursorPosition;
+    auto old = editorState.cursorPosition;
     
     Coordinate beginning = Coordinate(lineNo, 0);
     beginning = findNextWord(beginning);
-    m_editorState.m_cursorPosition = beginning;
+    editorState.cursorPosition = beginning;
     
     if(shift) {
       if(hasSelection()) {
-        m_interactiveStart = m_editorState.m_cursorPosition;
-        m_interactiveEnd = m_editorState.m_selectionEnd;
+        interactiveStart = editorState.cursorPosition;
+        interactiveEnd = editorState.selectionEnd;
       } else {
-        m_interactiveStart = m_editorState.m_cursorPosition;
-        m_interactiveEnd = old;
+        interactiveStart = editorState.cursorPosition;
+        interactiveEnd = old;
       }
     } else {
-      m_interactiveStart = m_interactiveEnd = m_editorState.m_cursorPosition; 
+      interactiveStart = interactiveEnd = editorState.cursorPosition; 
     }
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
     ensureCursorVisible();
   }
   
   void EditorUI::moveTop(bool shift) {
     PROFILE_START;
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
     
-    auto old = m_editorState.m_cursorPosition;
-    m_editorState.m_cursorPosition = Coordinate(0, 0);
+    auto old = editorState.cursorPosition;
+    editorState.cursorPosition = Coordinate(0, 0);
     
     if(shift) {
       if (hasSelection()) {
-        m_interactiveEnd = m_editorState.m_selectionStart;
+        interactiveEnd = editorState.selectionStart;
       } else {
-        m_interactiveEnd = old;
+        interactiveEnd = old;
       }
-      m_interactiveStart = m_editorState.m_cursorPosition;
+      interactiveStart = editorState.cursorPosition;
     }
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
     ensureCursorVisible();
   }
   
   void EditorUI::moveBottom(bool shift) {
     PROFILE_START;
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
     
-    auto old = m_editorState.m_cursorPosition;
-    m_editorState.m_cursorPosition = Coordinate((int)m_lines.size() - 1, 0);
+    auto old = editorState.cursorPosition;
+    editorState.cursorPosition = Coordinate((int)lines.size() - 1, 0);
     
     if(shift) {
       if (hasSelection()) {
-        m_interactiveStart = m_editorState.m_selectionStart;
+        interactiveStart = editorState.selectionStart;
       } else {
-        m_interactiveStart = old;
+        interactiveStart = old;
       }
-      m_interactiveEnd = m_editorState.m_cursorPosition;
+      interactiveEnd = editorState.cursorPosition;
     }
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
     ensureCursorVisible();
   }
   
@@ -933,20 +934,20 @@ namespace UI {
       return;
     }
     
-    if (m_editorState.m_selectionStart == m_editorState.m_selectionEnd) {
+    if (editorState.selectionStart == editorState.selectionEnd) {
       return;
     }
     
-    deleteRange(m_editorState.m_selectionStart, m_editorState.m_selectionEnd);
-    setCursorPosition(m_editorState.m_selectionStart);
+    deleteRange(editorState.selectionStart, editorState.selectionEnd);
+    setCursorPosition(editorState.selectionStart);
   }
   
   void EditorUI::copy() {
     if(hasSelection()) {
       ImGui::SetClipboardText(getSelectedText().c_str());
-    } else if(!m_lines.empty()) {
+    } else if(!lines.empty()) {
       std::string result;
-      auto& line = m_lines[getActualCursorCoordinates().m_line];
+      auto& line = lines[getActualCursorCoordinates().line];
       for (auto &g : line) {
         result.push_back(g.m_char);
       }
@@ -955,7 +956,7 @@ namespace UI {
   }
   
   inline EditorUI::Line &EditorUI::insertLine(int index) {
-    return *m_lines.insert(m_lines.begin() + index, Line());
+    return *lines.insert(lines.begin() + index, Line());
   }
   
   int EditorUI::insertTextAt(Coordinate &pos, const char *value) {
@@ -966,27 +967,27 @@ namespace UI {
       if (*value == '\r') {
         ++value;
       } else if (*value == '\n') {
-        if (cindex < (int)m_lines[pos.m_line].size()) {
-          auto& newLine = insertLine(pos.m_line + 1);
-          auto& line = m_lines[pos.m_line];
+        if (cindex < (int)lines[pos.line].size()) {
+          auto& newLine = insertLine(pos.line + 1);
+          auto& line = lines[pos.line];
           newLine.insert(newLine.begin(), line.end() + cindex, line.end());
           line.erase(line.begin() + cindex, line.end());
         } else {
-          insertLine(pos.m_line + 1);
+          insertLine(pos.line + 1);
         }
-        pos.m_line++;
-        pos.m_column = 0;
+        pos.line++;
+        pos.column = 0;
         ++totalLines;
         ++value;
       } else {
-        auto& line = m_lines[pos.m_line];
+        auto& line = lines[pos.line];
         auto d = UTF8CharLength(*value);
         while (d-- > 0 && *value != '\0') {
           line.insert(line.begin() + cindex++, Glypth(*value++));
         }
-        pos.m_column++;
+        pos.column++;
       }
-      m_textChanged = true;
+      textChanged = true;
     }
     return totalLines;
   }
@@ -997,8 +998,8 @@ namespace UI {
     }
     
     auto pos = getActualCursorCoordinates();
-    auto start = std::min(pos, m_editorState.m_selectionStart);
-    int totalLines = pos.m_line - start.m_line;
+    auto start = std::min(pos, editorState.selectionStart);
+    int totalLines = pos.line - start.line;
     
     totalLines += insertTextAt(pos, value);
     
@@ -1011,7 +1012,7 @@ namespace UI {
   }
   
   void EditorUI::paste() {
-    if (m_readOnly) {
+    if (readOnly) {
       return;
     }
     
@@ -1030,62 +1031,62 @@ namespace UI {
     if (hasSelection()) {
       deleteSelection();
     } else {
-      int lineNo = m_editorState.m_cursorPosition.m_line;
-      bool lastLine = lineNo == (int)m_lines.size() - 1;
+      int lineNo = editorState.cursorPosition.line;
+      bool lastLine = lineNo == (int)lines.size() - 1;
       deleteLine(lineNo, lineNo + 1);
       if (lastLine) {
         insertLine(lineNo);
-        m_editorState.m_cursorPosition = Coordinate(lineNo, 0);
+        editorState.cursorPosition = Coordinate(lineNo, 0);
       }
     }
   }
   
   void EditorUI::selectAll() {
     PROFILE_START;
-    if (m_lines.size() == 0) {
+    if (lines.size() == 0) {
       return;
     }
     
-    m_interactiveStart = Coordinate(0, 0);
-    int lastLineNo = m_lines.size() - 1;
+    interactiveStart = Coordinate(0, 0);
+    int lastLineNo = lines.size() - 1;
     Coordinate end = Coordinate(lastLineNo, getLineMaxColumn(lastLineNo));
-    m_interactiveEnd = m_editorState.m_cursorPosition = end;
+    interactiveEnd = editorState.cursorPosition = end;
     
-    setSelection(m_interactiveStart, m_interactiveEnd, SelectionMode::Normal);
+    setSelection(interactiveStart, interactiveEnd, SelectionMode::Normal);
   }
   
   void EditorUI::insertCharacter(ImWchar c, bool shift) {
     PROFILE_START;
     if (hasSelection()) {
-      if (c == '\t' && m_editorState.m_selectionStart.m_line == m_editorState.m_selectionEnd.m_line) {
-        auto start = m_editorState.m_selectionStart;
-        auto end = m_editorState.m_selectionEnd;
+      if (c == '\t' && editorState.selectionStart.line == editorState.selectionEnd.line) {
+        auto start = editorState.selectionStart;
+        auto end = editorState.selectionEnd;
         auto originalEnd = end;
         
         if (start > end) {
           std::swap(start, end);
         }
         
-        start.m_column = 0;
-        if (end.m_column == 0 && end.m_line > 0) {
-          --end.m_line;
+        start.column = 0;
+        if (end.column == 0 && end.line > 0) {
+          --end.line;
         }
-        if (end.m_line >= (int)m_lines.size()) {
-          end.m_line = m_lines.empty() ? 0 : (int)m_lines.size() - 1;
+        if (end.line >= (int)lines.size()) {
+          end.line = lines.empty() ? 0 : (int)lines.size() - 1;
         }
-        end.m_column = getLineMaxColumn(end.m_line);
+        end.column = getLineMaxColumn(end.line);
         
         bool modified = false;
         
-        for (int i = start.m_line; i <= end.m_line; i++) {
-          auto& line = m_lines[i];
+        for (int i = start.line; i <= end.line; i++) {
+          auto& line = lines[i];
           if (shift) {
             if (!line.empty()) {
               if (line.front().m_char == '\t') {
                 line.erase(line.begin());
                 modified = true;
               } else {
-                for (int j = 0; j < m_tabSize && !line.empty() && line.front().m_char == ' '; j++) {
+                for (int j = 0; j < tabSize && !line.empty() && line.front().m_char == ' '; j++) {
                   line.erase(line.begin());
                   modified = true;
                 }
@@ -1098,16 +1099,16 @@ namespace UI {
         }
         
         if (modified) {
-          start = Coordinate(start.m_line, getCharacterColumn(start.m_line, 0));
+          start = Coordinate(start.line, getCharacterColumn(start.line, 0));
           Coordinate rangeEnd;
-          if (originalEnd.m_column != 0) {
-            end = Coordinate(end.m_line, getLineMaxColumn(end.m_line));
+          if (originalEnd.column != 0) {
+            end = Coordinate(end.line, getLineMaxColumn(end.line));
             rangeEnd = end;
           } else {
-            end = Coordinate(originalEnd.m_line, 0);
-            rangeEnd = Coordinate(end.m_line - 1, getLineMaxColumn(end.m_line - 1));
+            end = Coordinate(originalEnd.line, 0);
+            rangeEnd = Coordinate(end.line - 1, getLineMaxColumn(end.line - 1));
           }
-          m_textChanged = true;
+          textChanged = true;
           ensureCursorVisible();
         }
         return;
@@ -1119,9 +1120,9 @@ namespace UI {
     auto coord = getActualCursorCoordinates();
     
     if (c == '\n') {
-      insertLine(coord.m_line + 1);
-      auto &line = m_lines[coord.m_line];
-      auto &newLine = m_lines[coord.m_line + 1];
+      insertLine(coord.line + 1);
+      auto &line = lines[coord.line];
+      auto &newLine = lines[coord.line + 1];
       
       // TODO(Maxlisui): Auto Indentation
       
@@ -1129,7 +1130,7 @@ namespace UI {
       auto cindex = getCharacterIndex(coord);
       newLine.insert(newLine.begin(), line.begin() + cindex, line.end());
       line.erase(line.begin() + cindex, line.begin() + line.size());
-      setCursorPosition(Coordinate(coord.m_line + 1, getCharacterColumn(coord.m_line + 1, (int)whiteSpaceSize)));
+      setCursorPosition(Coordinate(coord.line + 1, getCharacterColumn(coord.line + 1, (int)whiteSpaceSize)));
     } else {
       char buf[7];
       int e = ImTextCharToUtf8(buf, 7, c);
@@ -1139,10 +1140,10 @@ namespace UI {
       }
       
       buf[e] = '\0';
-      auto &line = m_lines[coord.m_line];
+      auto &line = lines[coord.line];
       auto cindex = getCharacterIndex(coord);
       
-      if (m_override && cindex < (int)line.size()) {
+      if (override && cindex < (int)line.size()) {
         auto d = UTF8CharLength(line[cindex].m_char);
         
         while (d-- > 0 && cindex < (int)line.size()) {
@@ -1154,80 +1155,80 @@ namespace UI {
         line.insert(line.begin() + cindex, Glypth(*p));
       }
       
-      setCursorPosition(Coordinate(coord.m_line, getCharacterColumn(coord.m_line, cindex)));
+      setCursorPosition(Coordinate(coord.line, getCharacterColumn(coord.line, cindex)));
     }
     
-    m_textChanged = true;
+    textChanged = true;
     ensureCursorVisible();
   }
-
+  
   void EditorUI::backspace() {
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
-
+    
     if (hasSelection()) {
       deleteSelection();
     } else {
       auto pos = getActualCursorCoordinates();
       setCursorPosition(pos);
-
-      if (m_editorState.m_cursorPosition.m_column == 0) {
-        if (m_editorState.m_cursorPosition.m_line == 0) {
+      
+      if (editorState.cursorPosition.column == 0) {
+        if (editorState.cursorPosition.line == 0) {
           return;
         }
-
-        int lineNo = m_editorState.m_cursorPosition.m_line;
-        auto& line = m_lines[lineNo];
-        auto& prevLine = m_lines[lineNo];
+        
+        int lineNo = editorState.cursorPosition.line;
+        auto& line = lines[lineNo];
+        auto& prevLine = lines[lineNo];
         auto prevSize = getLineMaxColumn(lineNo - 1);
-
+        
         prevLine.insert(prevLine.end(), line.begin(), line.end());
-
+        
         deleteLine(lineNo);
-        --m_editorState.m_cursorPosition.m_line;
-        m_editorState.m_cursorPosition.m_column = prevSize;
+        --editorState.cursorPosition.line;
+        editorState.cursorPosition.column = prevSize;
       } else {
-        auto& line = m_lines[m_editorState.m_cursorPosition.m_line];
+        auto& line = lines[editorState.cursorPosition.line];
         auto cindex = getCharacterIndex(pos) - 1;
         auto cend = cindex + 1;
         while (cindex > 0 && isUTF8Sequence(line[cindex].m_char)) {
           cindex--;
         }
-
-        --m_editorState.m_cursorPosition.m_column;
-
+        
+        --editorState.cursorPosition.column;
+        
         while (cindex < line.size() && cend-- > cindex) {
           line.erase(line.begin() + cindex);
         }
       }
-
-      m_textChanged = true;
+      
+      textChanged = true;
       ensureCursorVisible();
     }
   }
-
+  
   void EditorUI::remove() {
-    if (m_lines.empty()) {
+    if (lines.empty()) {
       return;
     }
-
+    
     if (hasSelection()) {
       deleteSelection();
     }
-
+    
     auto pos = getActualCursorCoordinates();
     setCursorPosition(pos);
-    auto& line = m_lines[pos.m_line];
-
-    if (pos.m_column == getLineMaxColumn(pos.m_line)) {
-      if (pos.m_line == (int)m_lines.size() - 1) {
+    auto& line = lines[pos.line];
+    
+    if (pos.column == getLineMaxColumn(pos.line)) {
+      if (pos.line == (int)lines.size() - 1) {
         return;
       }
-
-      auto& nextLine = m_lines[pos.m_line + 1];
+      
+      auto& nextLine = lines[pos.line + 1];
       line.insert(line.end(), nextLine.begin(), nextLine.end());
-      deleteLine(pos.m_line + 1);
+      deleteLine(pos.line + 1);
     } else {
       auto cindex = getCharacterIndex(pos);
       auto d = UTF8CharLength(line[cindex].m_char);
@@ -1235,8 +1236,8 @@ namespace UI {
         line.erase(line.begin() + cindex);
       }
     }
-
-    m_textChanged = true;
+    
+    textChanged = true;
   }
   
   void EditorUI::handleKeyboardInput() {
@@ -1276,21 +1277,21 @@ namespace UI {
         moveBottom(shift);
       } else if (!alt && !ctrl && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home))) {
         moveTop(shift);
-      } else if (!m_readOnly && !ctrl && !shift && !alt &&
+      } else if (!readOnly && !ctrl && !shift && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete))) {
         remove();
-      } else if (!m_readOnly && !ctrl && !shift && !alt &&
+      } else if (!readOnly && !ctrl && !shift && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Backspace))) {
         backspace();
       } else if (ctrl && !shift && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert))) {
         copy();
-
+        
       } else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C))) {
         copy();
-      } else if (!m_readOnly && !ctrl && shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert))) {
+      } else if (!readOnly && !ctrl && shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Insert))) {
         paste();
-      } else if (!m_readOnly && ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V))) {
+      } else if (!readOnly && ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V))) {
         paste();
       } else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_X))) {
         cut();
@@ -1298,15 +1299,18 @@ namespace UI {
         cut();
       } else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_A))) {
         selectAll();
-      } else if (!m_readOnly && !ctrl && !shift && !alt &&
+      } else if (!readOnly && !ctrl && !shift && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter))) {
         insertCharacter('\n', false);
-      } else if (!m_readOnly && !ctrl && !alt &&
+      } else if (!readOnly && !ctrl && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab))) {
         insertCharacter('\n', shift);
+      } else if (ctrl && io.KeysDown[70]) {
+        showSearchAndReplace = true;
+        searchAndReplace->show();
       }
-
-      if (!m_readOnly && !io.InputQueueCharacters.empty()) {
+      
+      if (!readOnly && !io.InputQueueCharacters.empty()) {
         for (int i = 0; i < io.InputQueueCharacters.Size; i++) {
           auto c = io.InputQueueCharacters[i];
           if (c != 0 && (c == '\n' || c >= 32)) {
@@ -1321,18 +1325,22 @@ namespace UI {
   void EditorUI::render() {
     PROFILE_START;
     
-    m_cursoPositionChanged = false;
+    cursoPositionChanged = false;
     
     handleKeyboardInput();
     handleMouseInput();
+    
+    if (showSearchAndReplace) {
+      searchAndReplace->render();
+    }
     
     const float fontSize = ImGui::GetFont()
       ->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX,
                       -1.f, "#", nullptr, nullptr)
       .x;
     
-    m_charAdvance =
-      ImVec2(fontSize, ImGui::GetTextLineHeightWithSpacing() * m_lineSpacing);
+    charAdvance =
+      ImVec2(fontSize, ImGui::GetTextLineHeightWithSpacing() * lineSpacing);
     
     auto contentSize = ImGui::GetWindowContentRegionMax();
     auto drawList = ImGui::GetWindowDrawList();
@@ -1340,18 +1348,18 @@ namespace UI {
     ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
     auto scrollX = ImGui::GetScrollX();
     auto scrollY = ImGui::GetScrollY();
-    float longest = m_textStartPixel;
+    float longest = textStartPixel;
     
-    m_lineBuffer.clear();
+    lineBuffer.clear();
     
-    auto lineNo = (int)floor(scrollY / m_charAdvance.y);
+    auto lineNo = (int)floor(scrollY / charAdvance.y);
     
     auto lineMax = std::max(
                             0, std::min(
-                                        (int)m_lines.size(),
-                                        lineNo + (int)floor((scrollY + contentSize.y) / m_charAdvance.y)));
+                                        (int)lines.size(),
+                                        lineNo + (int)floor((scrollY + contentSize.y) / charAdvance.y)));
     
-    if (!m_lines.empty()) {
+    if (!lines.empty()) {
       float spaceSize = ImGui::GetFont()
         ->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f,
                         " ", nullptr, nullptr)
@@ -1361,16 +1369,16 @@ namespace UI {
       
       while (lineNo < lineMax) {
         auto lineStartScreenPos = ImVec2(
-                                         cursorScreenPos.x, cursorScreenPos.y + lineNo * m_charAdvance.y);
+                                         cursorScreenPos.x, cursorScreenPos.y + lineNo * charAdvance.y);
         auto textScreenPos =
-          ImVec2(lineStartScreenPos.x + m_textStartPixel, lineStartScreenPos.y);
+          ImVec2(lineStartScreenPos.x + textStartPixel, lineStartScreenPos.y);
         
-        auto& line = m_lines[lineNo];
+        auto& line = lines[lineNo];
         
         auto lineMaxColumn = getLineMaxColumn(lineNo);
         
-        longest = std::max(m_textStartPixel + textDistanceToLineStart(Coordinate(
-                                                                                 lineNo, lineMaxColumn)),
+        longest = std::max(textStartPixel + textDistanceToLineStart(Coordinate(
+                                                                               lineNo, lineMaxColumn)),
                            longest);
         
         Coordinate lineStartCoord = Coordinate(lineNo, 0);
@@ -1379,27 +1387,27 @@ namespace UI {
         float sstart = -1.f;
         float ssend = -1.f;
         
-        if (m_editorState.m_selectionStart <= lineEndCoord) {
-          sstart = m_editorState.m_selectionStart > lineStartCoord
-            ? textDistanceToLineStart(m_editorState.m_selectionStart)
+        if (editorState.selectionStart <= lineEndCoord) {
+          sstart = editorState.selectionStart > lineStartCoord
+            ? textDistanceToLineStart(editorState.selectionStart)
             : 0.0f;
         }
-        if (m_editorState.m_selectionEnd > lineStartCoord) {
+        if (editorState.selectionEnd > lineStartCoord) {
           ssend =
-            textDistanceToLineStart(m_editorState.m_selectionEnd < lineEndCoord
-                                    ? m_editorState.m_selectionEnd
+            textDistanceToLineStart(editorState.selectionEnd < lineEndCoord
+                                    ? editorState.selectionEnd
                                     : lineEndCoord);
         }
         
-        if (m_editorState.m_selectionEnd.m_line > lineNo) {
-          ssend += m_charAdvance.x;
+        if (editorState.selectionEnd.line > lineNo) {
+          ssend += charAdvance.x;
         }
         
         if (sstart != -1 && ssend != -1 && sstart < ssend) {
-          ImVec2 vstart(lineStartScreenPos.x + m_textStartPixel + sstart,
+          ImVec2 vstart(lineStartScreenPos.x + textStartPixel + sstart,
                         lineStartScreenPos.y);
-          ImVec2 vend(lineStartScreenPos.x + m_textStartPixel + ssend,
-                      lineStartScreenPos.y + m_charAdvance.y);
+          ImVec2 vend(lineStartScreenPos.x + textStartPixel + ssend,
+                      lineStartScreenPos.y + charAdvance.y);
           drawList->AddRectFilled(vstart, vend, 0x80a06020);
         }
         
@@ -1412,16 +1420,16 @@ namespace UI {
                           -1.0f, buf, nullptr, nullptr)
           .x;
         drawList->AddText(
-                          ImVec2(lineStartScreenPos.x + m_textStartPixel - lineNoWidth,
+                          ImVec2(lineStartScreenPos.x + textStartPixel - lineNoWidth,
                                  lineStartScreenPos.y),
                           0xff707000, buf);
         
-        if (m_editorState.m_cursorPosition.m_line == lineNo) {
+        if (editorState.cursorPosition.line == lineNo) {
           auto focused = ImGui::IsWindowFocused();
           
           if (!hasSelection()) {
             auto end = ImVec2(start.x + contentSize.x + scrollX,
-                              start.y + m_charAdvance.y);
+                              start.y + charAdvance.y);
             drawList->AddRectFilled(start, end,
                                     focused ? 0x40000000 : 0x40808080);
             drawList->AddRect(start, end, 0x40a0a0a0, 1.0f);
@@ -1432,19 +1440,19 @@ namespace UI {
               std::chrono::duration_cast<std::chrono::milliseconds>(
                                                                     std::chrono::system_clock::now().time_since_epoch())
               .count();
-            auto elapsed = timeEnd - m_startTime;
+            auto elapsed = timeEnd - startTime;
             
             if (elapsed > 400) {
               float width = 1.0f;
-              auto cindex = getCharacterIndex(m_editorState.m_cursorPosition);
-              float cx = textDistanceToLineStart(m_editorState.m_cursorPosition);
+              auto cindex = getCharacterIndex(editorState.cursorPosition);
+              float cx = textDistanceToLineStart(editorState.cursorPosition);
               
-              if (m_override && cindex < (int)line.size()) {
+              if (override && cindex < (int)line.size()) {
                 auto c = line[cindex].m_char;
                 if (c == '\t') {
                   auto x = (1.0f + std::floor((1.0f + cx) /
-                                              (float(m_tabSize) * spaceSize))) *
-                    (float(m_tabSize) * spaceSize);
+                                              (float(tabSize) * spaceSize))) *
+                    (float(tabSize) * spaceSize);
                   width = x - cx;
                 } else {
                   char buf2[2];
@@ -1459,11 +1467,11 @@ namespace UI {
               
               ImVec2 cstart(textScreenPos.x + cx, lineStartScreenPos.y);
               ImVec2 cend(textScreenPos.x + cx + width,
-                          lineStartScreenPos.y + m_charAdvance.y);
+                          lineStartScreenPos.y + charAdvance.y);
               drawList->AddRectFilled(cstart, cend, 0xffe0e0e0);
               
               if (elapsed > 800) {
-                m_startTime = timeEnd;
+                startTime = timeEnd;
               }
             }
           }
@@ -1478,15 +1486,15 @@ namespace UI {
           auto& glyph = line[i];
           auto l = UTF8CharLength(glyph.m_char);
           while (l-- > 0) {
-            m_lineBuffer.push_back(line[i++].m_char);
+            lineBuffer.push_back(line[i++].m_char);
           }
         }
         
-        if (!m_lineBuffer.empty()) {
+        if (!lineBuffer.empty()) {
           const ImVec2 newOffset(textScreenPos.x + bufferOffset.x,
                                  textScreenPos.y + bufferOffset.y);
-          drawList->AddText(newOffset, 0xffffffff, m_lineBuffer.c_str());
-          m_lineBuffer.clear();
+          drawList->AddText(newOffset, 0xffffffff, lineBuffer.c_str());
+          lineBuffer.clear();
         }
         
         lineNo++;
@@ -1507,8 +1515,8 @@ namespace UI {
       
       char buf[256];
       stbsp_snprintf(buf, 256, "Ln: %i Ch:%i",
-                     m_editorState.m_cursorPosition.m_line,
-                     m_editorState.m_cursorPosition.m_column);
+                     editorState.cursorPosition.line,
+                     editorState.cursorPosition.column);
       
       auto textSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, buf, nullptr, nullptr);
       
@@ -1521,10 +1529,10 @@ namespace UI {
       if(hasSelection()) {
         char buf2[256];
         
-        stbsp_snprintf(buf, 256, "Sel: %i %i - %i %i", m_editorState.m_selectionStart.m_line, 
-                       m_editorState.m_selectionStart.m_column,
-                       m_editorState.m_selectionEnd.m_line,
-                       m_editorState.m_selectionEnd.m_column);
+        stbsp_snprintf(buf, 256, "Sel: %i %i - %i %i", editorState.selectionStart.line, 
+                       editorState.selectionStart.column,
+                       editorState.selectionEnd.line,
+                       editorState.selectionEnd.column);
         
         textSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, buf, nullptr, nullptr);
         lineColPos = ImVec2(lineColPos.x - 5.f - textSize.x, lineColPos.y);
@@ -1533,6 +1541,40 @@ namespace UI {
       
     }
     ImGui::Dummy(ImVec2((longest + 2),
-                        (m_lines.size() * m_charAdvance.y) + bottomLineHeight));
+                        (lines.size() * charAdvance.y) + bottomLineHeight));
+  }
+  
+  void EditorUI::findNext(const string& next) {
+    if (lines.empty()) {
+      return;
+    }
+    
+    if (searchResults.empty()) {
+      for (int i = 0; i < lines.size(); i++) {
+        string currentLine;
+        for (auto &glypth : lines[i]) {
+          currentLine += glypth.m_char;
+        }
+        
+        auto pos = currentLine.find(next, 0);
+        while (pos != string::npos) {
+          SelectionRange range;
+          range.start = Coordinate((int)pos, i);
+          range.end = Coordinate((int)(pos + next.size()), i);
+          searchResults.emplace_back(range);
+          
+          std::cout << "Found from " << range.start.line << ":" << range.start.column << " to " <<
+            range.end.line << ":" << range.end.column << std::endl;
+          
+          pos = currentLine.find(next, pos + 1);
+        }
+      }
+    }
+  }
+  
+  void EditorUI::setSearchAndReplace(SearchAndReplaceUI *search) {
+    searchAndReplace = search;
+    search->editorMode = true;
+    search->onFindNext = [this](const string& next) { this->findNext(next); };
   }
 }  // namespace UI
