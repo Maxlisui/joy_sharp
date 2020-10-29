@@ -13,7 +13,8 @@ namespace UI {
     editorMode(false) {}
     
     void show();
-    void render();
+    void render(bool& show);
+    void handleKeyBoardInput(bool& show);
     
     string searchText;
     string replaceText;
@@ -24,5 +25,6 @@ namespace UI {
     bool matchCase;
     bool editorMode;
     std::function<void(const string)> onFindNext;
+    std::function<void(const string)> onFindPrev;
   };
 }  // namespace UI

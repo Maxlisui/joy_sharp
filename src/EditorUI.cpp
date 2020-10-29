@@ -123,8 +123,6 @@ namespace UI {
     return i;
   }
   
-  
-  
   float EditorUI::textDistanceToLineStart(const EditorUI::Coordinate& from) const {
     PROFILE_START;
     auto& line = lines[from.line];
@@ -159,6 +157,24 @@ namespace UI {
       }
     }
     return distance;
+  }
+  
+  void EditorUI::createUIRange(const Coordinate& from, const Coordinate& to, Coordinate& lineStart, Coordinate& lineEnd, float& start, float& end, int lineNo) {
+    if (from <= lineEnd) {
+      start = from > lineStart
+        ? textDistanceToLineStart(from)
+        : 0.0f;
+    }
+    if (to > lineStart) {
+      end =
+        textDistanceToLineStart(to < lineEnd
+                                ? to
+                                : lineEnd);
+    }
+    
+    if (to.line > lineNo) {
+      end += charAdvance.x;
+    }
   }
   
   void inline EditorUI::deleteLine(int start, int end) {
@@ -1240,6 +1256,17 @@ namespace UI {
     textChanged = true;
   }
   
+  void EditorUI::handleEscape() {
+    if (showSearchAndReplace) {
+      showSearchAndReplace = false;
+      return;
+    }
+    
+    if (!searchResults.empty()) {
+      searchResults.clear();
+    }
+  }
+  
   void EditorUI::handleKeyboardInput() {
     PROFILE_START;
     ImGuiIO& io = ImGui::GetIO();
@@ -1308,6 +1335,8 @@ namespace UI {
       } else if (ctrl && io.KeysDown[70]) {
         showSearchAndReplace = true;
         searchAndReplace->show();
+      } else if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape))) {
+        handleEscape();
       }
       
       if (!readOnly && !io.InputQueueCharacters.empty()) {
@@ -1330,9 +1359,7 @@ namespace UI {
     handleKeyboardInput();
     handleMouseInput();
     
-    if (showSearchAndReplace) {
-      searchAndReplace->render();
-    }
+    searchAndReplace->render(showSearchAndReplace);
     
     const float fontSize = ImGui::GetFont()
       ->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX,
@@ -1387,21 +1414,7 @@ namespace UI {
         float sstart = -1.f;
         float ssend = -1.f;
         
-        if (editorState.selectionStart <= lineEndCoord) {
-          sstart = editorState.selectionStart > lineStartCoord
-            ? textDistanceToLineStart(editorState.selectionStart)
-            : 0.0f;
-        }
-        if (editorState.selectionEnd > lineStartCoord) {
-          ssend =
-            textDistanceToLineStart(editorState.selectionEnd < lineEndCoord
-                                    ? editorState.selectionEnd
-                                    : lineEndCoord);
-        }
-        
-        if (editorState.selectionEnd.line > lineNo) {
-          ssend += charAdvance.x;
-        }
+        createUIRange(editorState.selectionStart, editorState.selectionEnd, lineStartCoord, lineEndCoord, sstart, ssend, lineNo);
         
         if (sstart != -1 && ssend != -1 && sstart < ssend) {
           ImVec2 vstart(lineStartScreenPos.x + textStartPixel + sstart,
@@ -1409,6 +1422,21 @@ namespace UI {
           ImVec2 vend(lineStartScreenPos.x + textStartPixel + ssend,
                       lineStartScreenPos.y + charAdvance.y);
           drawList->AddRectFilled(vstart, vend, 0x80a06020);
+        }
+        
+        for(auto &result : searchResults) {
+          float srStart = -1.f;
+          float srEnd = -1.f;
+          
+          createUIRange(result.start, result.end, lineStartCoord, lineEndCoord, srStart, srEnd, lineNo);
+          
+          if (srStart != -1 && srEnd != -1 && srStart < srEnd) {
+            ImVec2 vstart(lineStartScreenPos.x + textStartPixel + srStart,
+                          lineStartScreenPos.y);
+            ImVec2 vend(lineStartScreenPos.x + textStartPixel + srEnd,
+                        lineStartScreenPos.y + charAdvance.y);
+            drawList->AddRectFilled(vstart, vend, 0x80b5b5b5);
+          }
         }
         
         auto start = ImVec2(lineStartScreenPos.x + scrollX, lineStartScreenPos.y);
@@ -1544,31 +1572,73 @@ namespace UI {
                         (lines.size() * charAdvance.y) + bottomLineHeight));
   }
   
+  void EditorUI::setFindResult(const string& str) {
+    for (int i = 0; i < lines.size(); i++) {
+      string currentLine;
+      for (auto &glypth : lines[i]) {
+        currentLine += glypth.m_char;
+      }
+      
+      auto pos = currentLine.find(str, 0);
+      while (pos != string::npos) {
+        SelectionRange range;
+        range.start = Coordinate(i, (int)pos);
+        range.end = Coordinate(i, (int)(pos + str.size()));
+        searchResults.emplace_back(range);
+        
+        pos = currentLine.find(str, pos + 1);
+      }
+    }
+    
+    if (!searchResults.empty()) {
+      editorState.cursorPosition = searchResults[0].start;
+      ensureCursorVisible();
+    }
+  }
+  
   void EditorUI::findNext(const string& next) {
     if (lines.empty()) {
       return;
     }
     
+    if (next != lastSearchString) {
+      lastSearchString = next;
+      searchResults.clear();
+    }
+    
     if (searchResults.empty()) {
-      for (int i = 0; i < lines.size(); i++) {
-        string currentLine;
-        for (auto &glypth : lines[i]) {
-          currentLine += glypth.m_char;
-        }
-        
-        auto pos = currentLine.find(next, 0);
-        while (pos != string::npos) {
-          SelectionRange range;
-          range.start = Coordinate((int)pos, i);
-          range.end = Coordinate((int)(pos + next.size()), i);
-          searchResults.emplace_back(range);
-          
-          std::cout << "Found from " << range.start.line << ":" << range.start.column << " to " <<
-            range.end.line << ":" << range.end.column << std::endl;
-          
-          pos = currentLine.find(next, pos + 1);
-        }
+      setFindResult(next);
+    } else {
+      currentSearchItem++;
+      if (currentSearchItem == (int)searchResults.size()) {
+        currentSearchItem = 0;
       }
+      
+      editorState.cursorPosition = searchResults[currentSearchItem].start;
+      ensureCursorVisible();
+    }
+  }
+  
+  void EditorUI::findPrev(const string& prev) {
+    if (lines.empty()) {
+      return;
+    }
+    
+    if (prev != lastSearchString) {
+      lastSearchString = prev;
+      searchResults.clear();
+    }
+    
+    if (searchResults.empty()) {
+      setFindResult(prev);
+    } else {
+      currentSearchItem--;
+      if (currentSearchItem < 0) {
+        currentSearchItem = (int)searchResults.size() - 1;
+      }
+      
+      editorState.cursorPosition = searchResults[currentSearchItem].start;
+      ensureCursorVisible();
     }
   }
   
@@ -1576,5 +1646,6 @@ namespace UI {
     searchAndReplace = search;
     search->editorMode = true;
     search->onFindNext = [this](const string& next) { this->findNext(next); };
+    search->onFindPrev = [this](const string& prev) { this->findPrev(prev); };
   }
 }  // namespace UI

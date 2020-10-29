@@ -21,7 +21,9 @@ namespace UI {
     textChanged(false),
     selectionMode(SelectionMode::Normal),
     searchAndReplace(nullptr),
-    showSearchAndReplace(false) {}
+    showSearchAndReplace(false),
+    currentSearchItem(0),
+    lastSearchString("") {}
     
     struct Glypth {
       Glypth(uint8_t character) : m_char(character) {}
@@ -118,6 +120,8 @@ namespace UI {
     void backspace();
     void remove();
     void ensureCursorVisible();
+    void handleEscape();
+    void createUIRange(const Coordinate& from, const Coordinate& to, Coordinate& lineStart, Coordinate& lineEnd, float& start, float& end, int lineNo);
     Coordinate getActualCursorCoordinates() const;
     std::string getSelectedText() const;
     std::string getText(const Coordinate& from, const Coordinate& to) const;
@@ -131,7 +135,9 @@ namespace UI {
     int insertTextAt(Coordinate &pos, const char *value);
     Line &insertLine(int index);
     void insertCharacter(ImWchar c, bool shift);
+    void setFindResult(const string& str);
     void findNext(const string& next);
+    void findPrev(const string& prev);
     
     Lines lines;
     float lineSpacing;
@@ -152,6 +158,8 @@ namespace UI {
     SearchAndReplaceUI *searchAndReplace;
     bool showSearchAndReplace;
     std::vector<SelectionRange> searchResults;
+    int currentSearchItem;
+    string lastSearchString;
   };
   
 } // namespace UI
