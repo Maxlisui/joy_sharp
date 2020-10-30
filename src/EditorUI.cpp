@@ -1267,6 +1267,21 @@ namespace UI {
     }
   }
   
+  void EditorUI::save() {
+    PROFILE_START;
+    
+    if (!onSave || !textChanged) {
+      return;
+    }
+    
+    int lastLineNo = lines.size() - 1;
+    Coordinate end = Coordinate(lastLineNo, getLineMaxColumn(lastLineNo));
+    string text = getText(Coordinate(0, 0), end);
+    
+    onSave(text);
+    textChanged = false;
+  }
+  
   void EditorUI::handleKeyboardInput() {
     PROFILE_START;
     ImGuiIO& io = ImGui::GetIO();
@@ -1332,11 +1347,13 @@ namespace UI {
       } else if (!readOnly && !ctrl && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab))) {
         insertCharacter('\n', shift);
-      } else if (ctrl && io.KeysDown[70]) {
+      } else if (ctrl && io.KeysDown[0x46]) {
         showSearchAndReplace = true;
         searchAndReplace->show();
       } else if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape))) {
         handleEscape();
+      } else if (ctrl && !shift && !alt && io.KeysDown[0x53]) {
+        save();
       }
       
       if (!readOnly && !io.InputQueueCharacters.empty()) {

@@ -70,6 +70,8 @@ namespace UI {
                         std::vector<char> bytes(fileSize);
                         ifs.read(bytes.data(), fileSize);
                         
+                        ifs.close();
+                        
                         EditorWrapper *wrapper = new EditorWrapper;
                         EditorUI *newEditor = new EditorUI;
                         SearchAndReplaceUI *searchAndReplace = new SearchAndReplaceUI;
@@ -79,6 +81,12 @@ namespace UI {
                         
                         newEditor->setText(string(bytes.data(), fileSize));
                         newEditor->setSearchAndReplace(searchAndReplace);
+                        
+                        newEditor->onSave = [entry](const string& text) {
+                          std::ofstream ofs(entry.path().c_str(), std::ios::trunc);
+                          ofs << text;
+                          ofs.close();
+                        };
                         
                         g_newEditorMutex.lock();
                         g_editors.push_back(wrapper);
@@ -159,14 +167,23 @@ namespace UI {
       renderSlnExplorer();
     }
     
+    
+    
     if (g_newEditorMutex.try_lock()) {
       for (auto wrapper : g_editors) {
         ImGui::SetNextWindowDockID(mainDockspace, ImGuiCond_FirstUseEver);
         
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0xFF1E1E1E);
+        
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_HorizontalScrollbar |
+          ImGuiWindowFlags_AlwaysHorizontalScrollbar;
+        
+        if (wrapper->editor->textChanged) {
+          windowFlags |= ImGuiWindowFlags_UnsavedDocument;
+        }
+        
         ImGui::Begin(wrapper->name.c_str(), nullptr,
-                     ImGuiWindowFlags_HorizontalScrollbar |
-                     ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+                     windowFlags);
         ImGui::PushAllowKeyboardFocus(true);
         
         wrapper->editor->render();

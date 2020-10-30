@@ -5,6 +5,7 @@
 #include "SearchAndReplaceUI.h"
 #include <chrono>
 #include <vector>
+#include <functional>
 
 namespace UI {
   struct EditorUI {
@@ -139,6 +140,7 @@ namespace UI {
     void findNext(const string& next);
     void findPrev(const string& prev);
     void replaceAll(const string& searchText, const string& replaceText);
+    void save();
     
     Lines lines;
     float lineSpacing;
@@ -161,6 +163,7 @@ namespace UI {
     std::vector<SelectionRange> searchResults;
     int currentSearchItem;
     string lastSearchString;
+    std::function<void(const string& text)> onSave;
   };
   
 } // namespace UI

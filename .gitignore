@@ -7,3 +7,4 @@ CMakeSettings.json
 vendor
 *.4coder
 CMakeLists.txt.user
+*.rdbg
