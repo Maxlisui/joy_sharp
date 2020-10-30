@@ -26,5 +26,6 @@ namespace UI {
     bool editorMode;
     std::function<void(const string)> onFindNext;
     std::function<void(const string)> onFindPrev;
+    std::function<void(const string, const string)> onReplaceAll;
   };
 }  // namespace UI

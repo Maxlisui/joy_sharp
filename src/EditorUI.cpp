@@ -1642,10 +1642,40 @@ namespace UI {
     }
   }
   
+  void EditorUI::replaceAll(const string& searchText, const string& replaceText) {
+    if (lines.empty()) {
+      return;
+    }
+    
+    if (searchText != lastSearchString) {
+      searchResults.clear();
+    }
+    
+    if (searchResults.empty()) {
+      setFindResult(searchText);
+    }
+    
+    if (searchResults.empty()) {
+      return;
+    }
+    
+    auto cursorBefore = editorState.cursorPosition;
+    
+    for(auto &result : searchResults) {
+      deleteRange(result.start, result.end);
+      setCursorPosition(result.start);
+      insertText(replaceText);
+    }
+    
+    editorState.cursorPosition = cursorBefore;
+    searchResults.clear();
+  }
+  
   void EditorUI::setSearchAndReplace(SearchAndReplaceUI *search) {
     searchAndReplace = search;
     search->editorMode = true;
     search->onFindNext = [this](const string& next) { this->findNext(next); };
     search->onFindPrev = [this](const string& prev) { this->findPrev(prev); };
+    search->onReplaceAll = [this](const string& search, const string& replace) { this->replaceAll(search, replace); };
   }
 }  // namespace UI

@@ -1,1 +1,6 @@
-If cursor column = 0 and backspace is pressed => Deletes row
+Bugs:
+	If cursor column = 0 and backspace is pressed => Deletes row
+
+Features:
+	Search And Replace:
+		Match Word

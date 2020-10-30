@@ -69,6 +69,9 @@ namespace UI {
       }
       
       if (ImGui::Button("Replace All")) {
+        if (onReplaceAll) {
+          onReplaceAll(searchText, replaceText);
+        }
       }
       
       ImGui::End();

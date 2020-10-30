@@ -138,6 +138,7 @@ namespace UI {
     void setFindResult(const string& str);
     void findNext(const string& next);
     void findPrev(const string& prev);
+    void replaceAll(const string& searchText, const string& replaceText);
     
     Lines lines;
     float lineSpacing;
