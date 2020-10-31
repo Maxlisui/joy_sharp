@@ -23,38 +23,38 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 int main(int argc, char** argv) {
-
+  
   // Create application window
   WNDCLASSEX wc = {
-      sizeof(WNDCLASSEX),       CS_CLASSDC, WndProc, 0L,      0L,
-      GetModuleHandle(nullptr), nullptr,    nullptr, nullptr, nullptr,
-      _T("Joy Sharp"),          nullptr};
+    sizeof(WNDCLASSEX),       CS_CLASSDC, WndProc, 0L,      0L,
+    GetModuleHandle(nullptr), nullptr,    nullptr, nullptr, nullptr,
+    _T("Joy Sharp"),          nullptr};
   ::RegisterClassEx(&wc);
   HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("Joy Sharp"),
                              WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr,
                              nullptr, wc.hInstance, nullptr);
-
+  
   // Initialize Direct3D
   if (!CreateDeviceD3D(hwnd)) {
     CleanupDeviceD3D();
     ::UnregisterClass(wc.lpszClassName, wc.hInstance);
     return 1;
   }
-
+  
   ::ShowWindow(hwnd, SW_SHOWDEFAULT);
   ::UpdateWindow(hwnd);
-
+  
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-
+  
   ImGui::StyleColorsDark();
-
+  
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
+  
   auto &style = ImGui::GetStyle();
-
+  
   auto defaultBgColor = ImVec4(.176f, .176f, .188f, 1.f);
-
+  
   float dpiScale = 1.f;
   Helper::WindowsHelper::tryGetDPIScale(dpiScale);
   style.WindowBorderSize = 1.f * dpiScale;
@@ -66,10 +66,10 @@ int main(int argc, char** argv) {
   style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.45f);
   style.Colors[ImGuiCol_WindowBg] = defaultBgColor;
   style.ScaleAllSizes(dpiScale);
-
+  
   ImGui_ImplWin32_Init(hwnd);
   ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
-
+  
   // Load Fonts
   // - If no fonts are loaded, dear imgui_ will use the default font. You can
   // also load multiple fonts and use ImGui::PushFont()/PopFont() to select
@@ -93,32 +93,34 @@ int main(int argc, char** argv) {
   // ImFont* font =
   // io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f,
   // NULL, io.Fonts->GetGlyphRangesJapanese()); IM_ASSERT(font != NULL);
-
+  
   auto io = ImGui::GetIO();
-
+  
   ImFontConfig textFontConfig;
   textFontConfig.OversampleH = 2;
   textFontConfig.OversampleV = 1;
   textFontConfig.GlyphExtraSpacing.x = 1.0f;
   io.Fonts->AddFontFromFileTTF(R"(c:\Windows\Fonts\consola.ttf)", 15.0f,
                                &textFontConfig);
-
+  
   ImFontConfig iconFontConfig;
   iconFontConfig.MergeMode = true;
   iconFontConfig.GlyphMinAdvanceX = 13.f;
   static const ImWchar icon_ranges[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
   io.Fonts->AddFontFromFileTTF(FONT_ICON_FILE_NAME_FAS, 13.f, &iconFontConfig,
                                icon_ranges);
-
+  
   ImVec4 clear_color = ImVec4(0.116f, 0.116f, 0.118f, 1.00f);
-
+  
   Project::VSSolution *sln = nullptr;
-
+  
+  UI::MainUI* mainUI = new UI::MainUI;
+  
   if (argc == 2) {
     sln = Helper::VSHelper::parseVSsln(string(argv[1]), nullptr);
   }
-  UI::MainUI::setup(sln);
-
+  mainUI->setup(sln);
+  
   MSG msg;
   ZeroMemory(&msg, sizeof(msg));
   while (msg.message != WM_QUIT) {
@@ -127,42 +129,43 @@ int main(int argc, char** argv) {
       ::DispatchMessage(&msg);
       continue;
     }
-
+    
     {
       PROFILE_START_NAMED("Main Thread")
-
-      ImGui_ImplDX11_NewFrame();
+        
+        ImGui_ImplDX11_NewFrame();
       ImGui_ImplWin32_NewFrame();
       ImGui::NewFrame();
-
-      UI::MainUI::render();
-
+      
+      mainUI->render();
+      
       ImGui::Render();
       g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView,
                                               nullptr);
       g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView,
                                                  (float *)&clear_color);
       ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
+      
       g_pSwapChain->Present(0, 0); // Present with vsync
     }
-
+    
     // g_pSwapChain->Present(0, 0); // Present without vsync
   }
-
+  
   // Cleanup
   ImGui_ImplDX11_Shutdown();
   ImGui_ImplWin32_Shutdown();
   ImGui::DestroyContext();
-
-  UI::MainUI::shutdown();
-
+  
+  mainUI->shutdown();
+  
+  delete mainUI;
   delete sln;
-
+  
   CleanupDeviceD3D();
   ::DestroyWindow(hwnd);
   ::UnregisterClass(wc.lpszClassName, wc.hInstance);
-
+  
   return 0;
 }
 
@@ -185,20 +188,20 @@ bool CreateDeviceD3D(HWND hWnd) {
   sd.SampleDesc.Quality = 0;
   sd.Windowed = TRUE;
   sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
+  
   UINT createDeviceFlags = 0;
   // createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL featureLevelArray[2] = {
-      D3D_FEATURE_LEVEL_11_0,
-      D3D_FEATURE_LEVEL_10_0,
+    D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_10_0,
   };
   if (D3D11CreateDeviceAndSwapChain(
-          nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags,
-          featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain,
-          &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext) != S_OK)
+                                    nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags,
+                                    featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain,
+                                    &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext) != S_OK)
     return false;
-
+  
   CreateRenderTarget();
   return true;
 }
@@ -244,9 +247,9 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
     return true;
-
+  
   switch (msg) {
-  case WM_SIZE:
+    case WM_SIZE:
     if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED) {
       CleanupRenderTarget();
       g_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam),
@@ -254,11 +257,11 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
       CreateRenderTarget();
     }
     return 0;
-  case WM_SYSCOMMAND:
+    case WM_SYSCOMMAND:
     if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
       return 0;
     break;
-  case WM_DESTROY:
+    case WM_DESTROY:
     ::PostQuitMessage(0);
     return 0;
   }

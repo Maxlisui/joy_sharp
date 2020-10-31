@@ -18,8 +18,7 @@ namespace UI {
     
     string searchText;
     string replaceText;
-    char* searchLocationText[4];
-    char* searchLocationTextSlim[2];
+    char* searchLocationText[2];
     int location;
     bool showCalled;
     bool matchCase;

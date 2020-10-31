@@ -1,18 +1,17 @@
 #include "MainUI.h"
 #include "Tooling.h"
 #include "../vendor/IconFontCppHeaders/IconsFontAwesome5.h"
-#include "../vendor/imgui/imgui.h"
 #include "EditorUI.h"
 #include "WelcomeUI.h"
 #include <fstream>
 #include <mutex>
 #include <thread>
+#include <iostream>
 
 namespace UI {
   
   struct EditorWrapper {
     EditorUI *editor;
-    SearchAndReplaceUI *searchAndReplace;
     string name;
   };
   
@@ -22,9 +21,20 @@ namespace UI {
   static std::vector<EditorWrapper *> g_editors;
   static std::mutex g_newEditorMutex;
   
-  bool doRenderInSolutionExplorer(const std::string &name) {
+  inline bool doRenderInSolutionExplorer(const std::string &name) {
     return !(name.ends_with("obj") || name.ends_with("proj") ||
              name == "Properties");
+  }
+  
+  void MainUI::keyPress(const ImGuiIO& io) {
+    auto shift = io.KeyShift;
+    auto ctrl = io.ConfigMacOSXBehaviors ? io.KeySuper : io.KeyCtrl;
+    auto alt = io.ConfigMacOSXBehaviors ? io.KeyCtrl : io.KeyAlt;
+    
+    if (ctrl && shift && !alt && ImGui::IsKeyPressed(0x46)) {
+      showSearchAndReplace = true;
+      searchAndReplace->show();
+    }
   }
   
   void renderSlnExplorerRecursive(const directory_entry &dir,
@@ -77,7 +87,6 @@ namespace UI {
                         SearchAndReplaceUI *searchAndReplace = new SearchAndReplaceUI;
                         wrapper->editor = newEditor;
                         wrapper->name = entry.path().filename().string();
-                        wrapper->searchAndReplace = searchAndReplace;
                         
                         newEditor->setText(string(bytes.data(), fileSize));
                         newEditor->setSearchAndReplace(searchAndReplace);
@@ -128,7 +137,7 @@ namespace UI {
     ImGui::End();
   }
   
-  void renderMain() {
+  void MainUI::renderMain() {
     PROFILE_START;
     
     ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -148,7 +157,7 @@ namespace UI {
     ImGui::PopStyleVar(3);
     
     ImGuiID mainDockspace = ImGui::GetID("MAIN_DOCKSPACE");
-    ImGui::DockSpace(mainDockspace, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+    ImGui::DockSpace(mainDockspace, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
     
     if (ImGui::BeginMenuBar()) {
       if (ImGui::BeginMenu("Folder")) {
@@ -167,7 +176,9 @@ namespace UI {
       renderSlnExplorer();
     }
     
-    
+    if (showSearchAndReplace) {
+      searchAndReplace->render(showSearchAndReplace);
+    }
     
     if (g_newEditorMutex.try_lock()) {
       for (auto wrapper : g_editors) {
@@ -180,6 +191,11 @@ namespace UI {
         
         if (wrapper->editor->textChanged) {
           windowFlags |= ImGuiWindowFlags_UnsavedDocument;
+        }
+        
+        // TODO(Maxlisui): Set this when editor gets created
+        if (!wrapper->editor->onKeyPress) {
+          wrapper->editor->onKeyPress = [this](const ImGuiIO& io) { this->keyPress(io); };
         }
         
         ImGui::Begin(wrapper->name.c_str(), nullptr,
@@ -206,8 +222,7 @@ namespace UI {
       EditorUI *editor = new EditorUI;
       wrapper->editor = editor;
       wrapper->name = "TestMax";
-      wrapper->searchAndReplace = new SearchAndReplaceUI;
-      wrapper->editor->setSearchAndReplace(wrapper->searchAndReplace);
+      wrapper->editor->setSearchAndReplace(new SearchAndReplaceUI);
       wrapper->editor->setText(
                                "  public void test(string test)\n  {\n    this.exist += "
                                "17;\n    _local.test "
@@ -219,6 +234,8 @@ namespace UI {
       g_newEditorMutex.lock();
       g_editors.push_back(wrapper);
       g_newEditorMutex.unlock();
+      
+      searchAndReplace = new SearchAndReplaceUI;
     }
   }
   
@@ -239,8 +256,8 @@ namespace UI {
   void MainUI::shutdown() {
     g_newEditorMutex.lock();
     for (auto wrapper : g_editors) {
+      delete wrapper->editor->searchAndReplace;
       delete wrapper->editor;
-      delete wrapper->searchAndReplace;
       delete wrapper;
     }
     g_newEditorMutex.unlock();

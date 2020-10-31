@@ -164,6 +164,7 @@ namespace UI {
     int currentSearchItem;
     string lastSearchString;
     std::function<void(const string& text)> onSave;
+    std::function<void(const ImGuiIO& io)> onKeyPress;
   };
   
 } // namespace UI

@@ -1347,13 +1347,15 @@ namespace UI {
       } else if (!readOnly && !ctrl && !alt &&
                  ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Tab))) {
         insertCharacter('\n', shift);
-      } else if (ctrl && io.KeysDown[0x46]) {
+      } else if (!shift && ctrl && ImGui::IsKeyPressed(0x46)) {
         showSearchAndReplace = true;
         searchAndReplace->show();
       } else if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape))) {
         handleEscape();
-      } else if (ctrl && !shift && !alt && io.KeysDown[0x53]) {
+      } else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(0x53)) {
         save();
+      } else if (onKeyPress) {
+        onKeyPress(io);
       }
       
       if (!readOnly && !io.InputQueueCharacters.empty()) {

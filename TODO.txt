@@ -1,5 +1,6 @@
 Bugs:
 	If cursor column = 0 and backspace is pressed => Deletes row
+	If editor has selection and backspace pressed => Weird selection stays
 
 Features:
 	Search And Replace:
